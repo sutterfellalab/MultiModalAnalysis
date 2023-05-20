@@ -10,7 +10,7 @@ Created on Thu Dec 22 11:56:04 2022
 def generalParameters():
     
     genParams = {
-                    'GIWAXS' : False,
+                    'GIWAXS' : True,
                     'PL' : True,
                     'Logging': True,
                     'TempOld' : False,

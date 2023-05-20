@@ -34,9 +34,9 @@ def convertGIWAXS_data(GIWAXS_data, sample_name, save_path):
     numFrames = GIWAXS_data.image_num[len(GIWAXS_data)-1] + 1
     beginTime = GIWAXS_data.time[0]
     endTime = GIWAXS_data.time[len(GIWAXS_data)-1]
-    time_per_frame = ((3600 * int(endTime.split(':')[0]) + 60 * int(endTime.split(':')[1]) + int(endTime.split(':')[2])) - 
-                      (3600 * int(beginTime.split(':')[0]) + 60 * int(beginTime.split(':')[1]) + 
-                      int(beginTime.split(':')[2])))/ numFrames
+    time_per_frame = ((3600 * int(endTime.split('.')[0]) + 60 * int(endTime.split('.')[1]) + int(endTime.split('.')[2])) - 
+                      (3600 * int(beginTime.split('.')[0]) + 60 * int(beginTime.split('.')[1]) + 
+                      int(beginTime.split('.')[2])))/ numFrames
     #time_per_frame = 1.84296
     print('Time per frame was calculated to: ' + str(time_per_frame) + ' s')
     
@@ -47,8 +47,8 @@ def convertGIWAXS_data(GIWAXS_data, sample_name, save_path):
     frame_intensity = np.array([])
 
     for line in range(0,len(GIWAXS_data)):
-        imagenum, twotheta, twotheta_cuka, dspacing, qvalue, intensity, frame_number, izero, date, time, placeholder = GIWAXS_data.iloc[line]
-        #imagenum, twotheta, twotheta_cuka, dspacing, qvalue, intensity, frame_number, izero, date, time = GIWAXS_data.iloc[line]
+        #imagenum, twotheta, twotheta_cuka, dspacing, qvalue, intensity, frame_number, izero, date, time, placeholder = GIWAXS_data.iloc[line]
+        imagenum, twotheta, twotheta_cuka, dspacing, qvalue, intensity, frame_number, izero, date, time = GIWAXS_data.iloc[line]
 
 
         if int(frame_number) == counter:
@@ -216,7 +216,7 @@ def getLogData(logParams, logFile):
     else:
         if logParams['LabviewPL']:
             header = 20 # rows to skip
-            names=np.array(['Time of Day', 'Time', 'Image Counts', 'Pyrometer', 'Dispense X', 'Dispense Z', 'Gas Quenching', 'Sine', 'Spin_Motor', 'BK Set Amps', 'BK Set Volts', 'BK Amps', 'BK Volts', 'BK Power', '2D Image', 'Spectrometer'])
+            names=np.array(['Time of Day', 'Time', 'Image Counts', 'Pyrometer', 'Dispense X', 'Dispense Z', 'Gas Quenching', 'Sine', 'Spin_Motor', 'BK Set Amps', 'BK Set Volts', 'BK Amps', 'BK Volts', 'BK Power', 'Spectrometer'])
             
         else:
             header = 16 # rows to skip 
