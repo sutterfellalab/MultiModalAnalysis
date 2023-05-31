@@ -10,6 +10,7 @@ import os
 import glob
 from scipy.signal import savgol_filter
 import copy
+from datetime import datetime, timedelta
 
 
 def convertGIWAXS_data(GIWAXS_data, sample_name, save_path):
@@ -34,10 +35,20 @@ def convertGIWAXS_data(GIWAXS_data, sample_name, save_path):
     numFrames = GIWAXS_data.image_num[len(GIWAXS_data)-1] + 1
     beginTime = GIWAXS_data.time[0]
     endTime = GIWAXS_data.time[len(GIWAXS_data)-1]
-    time_per_frame = ((3600 * int(endTime.split(':')[0]) + 60 * int(endTime.split(':')[1]) + int(endTime.split(':')[2])) - 
-                      (3600 * int(beginTime.split(':')[0]) + 60 * int(beginTime.split(':')[1]) + 
-                      int(beginTime.split(':')[2])))/ numFrames
-    #time_per_frame = 1.84296
+    #time_per_frame = ((3600 * int(endTime.split(':')[0]) + 60 * int(endTime.split(':')[1]) + int(endTime.split(':')[2])) - 
+    #                  (3600 * int(beginTime.split(':')[0]) + 60 * int(beginTime.split(':')[1]) + 
+    #                  int(beginTime.split(':')[2])))/ numFrames
+    FMT = '%H:%M:%S'
+    tdelta = datetime.strptime(endTime, FMT) - datetime.strptime(beginTime, FMT)
+    if tdelta.days < 0:
+        tdelta = timedelta(
+            days=0,
+            seconds=tdelta.seconds - 43200,
+            microseconds=tdelta.microseconds
+        )
+        
+    time_per_frame = tdelta.total_seconds() / numFrames
+        
     print('Time per frame was calculated to: ' + str(time_per_frame) + ' s')
     
     counter = 1
