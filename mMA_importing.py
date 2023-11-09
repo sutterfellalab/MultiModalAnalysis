@@ -32,7 +32,7 @@ def convertGIWAXS_data(GIWAXS_data, sample_name, save_path):
     These are saved as csv files.
 
     '''
-    print(GIWAXS_data)
+    
     numFrames = GIWAXS_data.image_num[len(GIWAXS_data)-1] + 1
 
     beginTime = GIWAXS_data.time[0]
