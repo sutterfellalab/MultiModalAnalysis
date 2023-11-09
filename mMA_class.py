@@ -48,7 +48,7 @@ class MMAnalysis(object):
                 GIWAXS_file = glob.glob(folder + '/GIWAXS' + "/*.dat")[0]
                 GIWAXS_data = pd.read_csv(GIWAXS_file, sep='\s+', header=0, names=np.array(
                     ['image_num', 'twotheta', 'twotheta_cuka', 'dspacing', 'qvalue', 'intensity', 'frame_number', 'izero',
-                      'date', 'time', 'AM/PM']))
+                      'date', 'time']))
         
                 self.qRaw, self.giwaxsTimeRaw, self.giwaxsIntensityRaw = self.convertGIWAXS_data(GIWAXS_data, self.sampleName, self.outputPath)
                 
