@@ -13,7 +13,7 @@ import tkinter as tk
 
 
 testObj = mMA_class.MMAnalysis("Testsample")
-
+#%%
 if testObj.genParams['Logging']:
             
     print("_____________________________________________________________")
@@ -87,7 +87,7 @@ if testObj.genParams['GIWAXS']:
     if type(dfPatterns) is not str:
         dfPatterns[testObj.sampleName + '_q_Patterns'] = testObj.giwaxsQPost
         dfPatterns.to_csv(os.path.join(testObj.outputPath, testObj.sampleName + '_Indv_GIWAXS-Patterns.csv'), index=None)
-    
+#%%    
 if testObj.genParams['PL']:
         
     print("_____________________________________________________________")

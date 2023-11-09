@@ -11,7 +11,7 @@ import glob
 from scipy.signal import savgol_filter
 import copy
 from datetime import datetime, timedelta
-
+from tqdm import tqdm
 
 def convertGIWAXS_data(GIWAXS_data, sample_name, save_path):
     '''
@@ -32,12 +32,12 @@ def convertGIWAXS_data(GIWAXS_data, sample_name, save_path):
     These are saved as csv files.
 
     '''
+    
     numFrames = GIWAXS_data.image_num[len(GIWAXS_data)-1] + 1
+
     beginTime = GIWAXS_data.time[0]
     endTime = GIWAXS_data.time[len(GIWAXS_data)-1]
-    #time_per_frame = ((3600 * int(endTime.split(':')[0]) + 60 * int(endTime.split(':')[1]) + int(endTime.split(':')[2])) - 
-    #                  (3600 * int(beginTime.split(':')[0]) + 60 * int(beginTime.split(':')[1]) + 
-    #                  int(beginTime.split(':')[2])))/ numFrames
+
     FMT = '%H:%M:%S'
     tdelta = datetime.strptime(endTime, FMT) - datetime.strptime(beginTime, FMT)
     if tdelta.days < 0:
@@ -51,36 +51,27 @@ def convertGIWAXS_data(GIWAXS_data, sample_name, save_path):
         
     print('Time per frame was calculated to: ' + str(time_per_frame) + ' s')
     
-    counter = 1
-    q = np.array([])
-    q_size = int(len(GIWAXS_data) / numFrames)
-    full_intensity = np.zeros(shape=(numFrames, q_size))
-    frame_intensity = np.array([])
-
-    for line in range(0,len(GIWAXS_data)):
-        imagenum, twotheta, twotheta_cuka, dspacing, qvalue, intensity, frame_number, izero, date, time, placeholder = GIWAXS_data.iloc[line]
-        #imagenum, twotheta, twotheta_cuka, dspacing, qvalue, intensity, frame_number, izero, date, time = GIWAXS_data.iloc[line]
-
-
-        if int(frame_number) == counter:
-            intensity = np.array([float(intensity) * float(izero)])
-            frame_intensity = np.append(frame_intensity, intensity)
-        else:
-            full_intensity[int(counter) - 1] = frame_intensity
-            counter += 1
-            # clearing the arrays that save the data of each frame
-            frame_intensity = np.array([])
-            # save data of current line
-            intensity = np.array([float(intensity) * float(izero)])
-            frame_intensity = np.append(frame_intensity, intensity)
+    frames_numbers = np.unique(GIWAXS_data["frame_number"])
+    q_values = np.unique(GIWAXS_data["qvalue"])
+    
+    begin_time = datetime.strptime(beginTime, FMT)
+    
+    full_intensity = []
+    frame_times    = []
+    for frame_nr in tqdm(frames_numbers):
         
-        if int(frame_number) == numFrames:
-            q = np.append(q, float(qvalue))
-
-    frame_num = np.linspace(1, int(numFrames), int(numFrames))
-    frame_time = frame_num * time_per_frame
-
-    return (q, frame_time, full_intensity)
+        pd_frame = GIWAXS_data[GIWAXS_data["frame_number"] == frame_nr]
+        
+        data = pd_frame[['intensity', 'izero']].to_numpy()
+        
+        new_time = datetime.strptime(pd_frame["time"].iloc[0], FMT)
+        
+        
+        full_intensity.append(np.prod(data, axis=1))
+        frame_times.append((new_time - begin_time).seconds)
+    
+    
+    return (q_values, np.array(frame_times), np.array(full_intensity))
 
 def getPLData(plParams, PL_files, folder, logTimes):
       
@@ -136,10 +127,10 @@ def getPLData(plParams, PL_files, folder, logTimes):
         df_all = np.concatenate([pd.read_csv(f, sep=";", header=0) for f in PL_files], axis=1)
         
     elif plParams['Labview']:
-        # defining X-axis using the timestamps as calculated above
+        # defining X-axis using the timestamps from the logfile
         df_x = logTimes
         # reading all files
-        df_all = np.concatenate([pd.read_csv(f, sep="\t", header=1) for f in PL_files], axis=1)
+        df_all = np.concatenate([pd.read_csv(f, sep="\t", header=1) for f in tqdm(PL_files)], axis=1)
     else:
         # Reading timestamps and converting to time from first spectrum in seconds
         mTime = np.zeros((nFiles, 6))
@@ -226,7 +217,8 @@ def getLogData(logParams, logFile):
         
     else:
         if logParams['LabviewPL']:
-            header = 20 # rows to skip
+            header = 93 # rows to skip
+            #names=np.array(['Time of Day', 'Time', 'Image Counts', 'Pyrometer', 'Dispense X', 'Dispense Z', 'Gas Quenching', 'Sine', 'Spin_Motor', 'BK Set Amps', 'BK Set Volts', 'BK Amps', 'BK Volts', 'BK Power', '2D Image', 'Spectrometer'])
             names=np.array(['Time of Day', 'Time', 'Image Counts', 'Pyrometer', 'Dispense X', 'Dispense Z', 'Gas Quenching', 'Sine', 'Spin_Motor', 'BK Set Amps', 'BK Set Volts', 'BK Amps', 'BK Volts', 'BK Power', '2D Image', 'Spectrometer'])
             
         else:
