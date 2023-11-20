@@ -67,7 +67,7 @@ def convertGIWAXS_data(GIWAXS_data, sample_name, save_path):
         new_time = datetime.strptime(pd_frame["time"].iloc[0], FMT)
         
         
-        full_intensity.append(np.prod(data, axis=1))
+        full_intensity.append(np.divide(data[:,0], data[:,1]))
         frame_times.append((new_time - begin_time).seconds)
     
     
