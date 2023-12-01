@@ -182,7 +182,7 @@ def getPLData(plParams, PL_files, folder, logTimes):
     # Jacobian transformation for all measured PL values (basically dividing by E^2)
     df_E = df.copy()
     for i in range(np.shape(df)[1]):
-        df_E[:, i] = 1240*df[:, i] / df_y_E / df_y_E
+        df_E[:, i] = df[:, i] / df_y_E / df_y_E
 
     # Mirroring dataframes to prevent sorting issues
     df_y_E = np.flip(df_y_E)
