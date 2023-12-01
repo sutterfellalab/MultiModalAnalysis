@@ -146,10 +146,12 @@ def plotStacked(genParams, sampleName, savePath, q, timeGIWAXS, intGIWAXS, energ
         fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(6, 9), sharex=True, gridspec_kw={'height_ratios': [2, 2, 1]})
         
         # PL plot
-        logIntPL = np.log(intPL+1)
+        # removing negative points from data (important for log plot)
+        intPL = np.where(intPL < 1, 1, intPL)
+        logIntPL = np.log(intPL)
         i_max = logIntPL.max()
         plt.setp(ax1.get_xticklabels(), fontsize=25)
-        cp1 = ax1.contourf(timePL, energyPL, logIntPL/i_max, np.linspace(0.1/i_max,1, 100),cmap='gist_heat')
+        cp1 = ax1.contourf(timePL, energyPL, logIntPL/i_max, np.linspace(0/i_max,1, 100),cmap='gist_heat')
         cbax1 = fig.add_axes([0.89, 0.66, 0.03, 0.3])
         cb1 = fig.colorbar(cp1, ax = ax1, cax = cbax1, ticks=np.linspace(0,1,2))
         cb1.set_label(' Norm. Intensity', fontsize = 12, labelpad=-3)

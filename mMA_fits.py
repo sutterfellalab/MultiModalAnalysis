@@ -26,13 +26,22 @@ def fit_single_frame(lowQ, highQ, q, intensity, frame_index, frames_to_plot, sam
     y = intensity[frame_index, lowQ:highQ]
     
     init_params = {                     # initial guess parameters
-                   'amplitude' : max(y)/40,     # default: 2
-                   'center' : x[np.argmax(y)], # 1 (in angstrom-1)
-                   'sigma' : 0.01,      # 0.01
-                   'fraction' : 0.5,    # 0.5
-                   'slope' : y[-1] - y[0], 
-                   'intercept' : 700    # 700
-                   }
+                    'amplitude' : max(y)/40,     # default: 2
+                    'center' : x[np.argmax(y)], # 1 (in angstrom-1)
+                    'sigma' : 0.01,      # 0.01
+                    'fraction' : 0.5,    # 0.5
+                    'slope' : y[-1] - y[0], 
+                    'intercept' : 0    # 700
+                    }
+    
+    # init_params = {                     # initial guess parameters
+    #                 'amplitude' : max(y)/2,     # default: 2
+    #                 'center' : x[np.argmax(y)], # 1 (in angstrom-1)
+    #                 'sigma' : 0.3,      # 0.01
+    #                 'fraction' : 0.5,    # 0.5
+    #                 'slope' : (y[-1] - y[0])/(x[-1] - x[0]), 
+    #                 'intercept' : y[0] - (y[-1] - y[0])/(x[-1] - x[0])*x[0]    # 700
+    #                 }
 
     # define fitting models (so far, one peak and a background function)
     peak = PseudoVoigtModel()
@@ -55,7 +64,7 @@ def fit_single_frame(lowQ, highQ, q, intensity, frame_index, frames_to_plot, sam
     # determine if peak in data, promninence of 190 is chosen by hand, doesn't
     # need to be ideal for every sample
     peak_in_frame = False #initially false
-    peaks = signal.find_peaks(y, prominence=190)[0]
+    peaks = signal.find_peaks(y)[0]
     if len(peaks) > 0:
 
         peak_in_frame = True
@@ -103,6 +112,7 @@ def fit_single_frame(lowQ, highQ, q, intensity, frame_index, frames_to_plot, sam
         params = [None]*6
         std_error = [None]*3
         redchi = [None]
+        print("No Peak Found")
 
     return (params, std_error, redchi, peak_in_frame)        
     
@@ -229,7 +239,7 @@ def plFitting(plParams, df_yCut, df_xCutFit, df_fit, show_every, numGauss, peakL
     # The next block is to convert the estimated peak positions and ranges into indexes
     idxLowerTH = [0.0]*int(numGauss)
     idxUpperTH = [0.0]*int(numGauss)
-
+    
     for i in range(0, int(numGauss)):
         idxLowerTH[i] = next(xStart for xStart, valStart in enumerate(df_yCut) if valStart > peakLowerTH[i])
         idxUpperTH[i] = next(xEnd for xEnd, valEnd in enumerate(df_yCut) if valEnd > peakUpperTH[i])
@@ -244,7 +254,7 @@ def plFitting(plParams, df_yCut, df_xCutFit, df_fit, show_every, numGauss, peakL
         yVals[idx, i] = yVals[idx - 1, i]
         
         # find peaks
-        peaks = signal.find_peaks(yVals[:, i], prominence=50)[0]
+        peaks = signal.find_peaks(yVals[:, i])[0]
         
         # array initialization
         estAmplitudes = [0.0]*int(numGauss)

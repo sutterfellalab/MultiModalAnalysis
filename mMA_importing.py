@@ -154,14 +154,13 @@ def getPLData(plParams, PL_files, folder, logTimes):
 
     # deleting every other column (all wavelength values) leaving only intensities
     df = np.delete(df_all, list(range(0, df_all.shape[1], 2)), axis=1)
-
     # =======================Part 2: Initial Modifications==================================
     
     if plParams['Labview']:
-        df = df - np.mean(df[:,0])
+        df = df - np.mean(df[-1,:])
 
     # removing negative points from data (important for log plot, also helps with scaling)
-    df = np.where(df <= 0, 0.01, df)
+    #df = np.where(df <= 0, 0.01, df)
     
     if plParams['smoothing']:
         df = savgol_filter(df, plParams['sFactor'], 0)

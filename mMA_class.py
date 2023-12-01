@@ -166,7 +166,7 @@ class MMAnalysis(object):
             if self.plParams['Labview']:
             
                 mMA_GUIs.inputGUI(self.inputDict, "Input_PL", 4, "Select Ranges", ['Please set the start time (in s):', 'Please set the end time (in s):', 'Please set the lower energy threshold (in eV): ',
-                                                               'Please set the upper energy threshold (in eV): '], "From Logging: " + str(self.inputDict["Times_Logging"][0]) + ' s' + " and " + str(float(self.inputDict["Times_Logging"][1])-float(self.inputDict["Times_Logging"][0])) + ' s')
+                                                               'Please set the upper energy threshold (in eV): '], "From Logging: " + str(self.inputDict["Times_Logging"][0]) + ' s' + " and " + str(float(self.inputDict["Times_Logging"][1])) + ' s')
             else:
                 
                 mMA_GUIs.inputGUI(self.inputDict, "Input_PL", 4, "Select Ranges", ['Please set the start time (in s):', 'Please set the end time (in s):', 'Please set the lower energy threshold (in eV): ',
@@ -335,8 +335,8 @@ class MMAnalysis(object):
                 minPeakWidth[i] = (0.0/1.665)**2
                 maxPeakWidth[i] = (0.5/1.665)**2
             else:
-                peakLowerTH[i] = float(self.inputDict["PLFits_CenterGuesses"][i]) - 0.28
-                peakUpperTH[i] = float(self.inputDict["PLFits_CenterGuesses"][i]) + 0.28
+                peakLowerTH[i] = float(self.inputDict["PLFits_CenterGuesses"][i]) - 0.2
+                peakUpperTH[i] = float(self.inputDict["PLFits_CenterGuesses"][i]) + 0.2
                 estPeakWidth[i] = (0.1/1.665)**2
                 minPeakWidth[i] = (0/1.665)**2
                 maxPeakWidth[i] = (1/1.665)**2
