@@ -161,7 +161,7 @@ def getPLData(plParams, PL_files, folder, logTimes):
         df = df - np.mean(df[:,0])
 
     # removing negative points from data (important for log plot, also helps with scaling)
-    df = np.where(df <= 0, 0, df)
+    df = np.where(df <= 0, 0.01, df)
     
     if plParams['smoothing']:
         df = savgol_filter(df, plParams['sFactor'], 0)
