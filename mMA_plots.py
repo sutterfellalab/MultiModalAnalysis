@@ -10,7 +10,8 @@ import os
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 from bokeh.palettes import Viridis256, Greys256
 from bokeh.plotting import figure, output_file, save
-from bokeh.models import LinearColorMapper, ColorBar, NumericInput, LinearAxis, Range1d, HoverTool, Panel, Tabs, CheckboxGroup, CustomJS
+from bokeh.models import LinearColorMapper, ColorBar, NumericInput, LinearAxis, Range1d, HoverTool, CheckboxGroup, CustomJS
+from bokeh.models.layouts import TabPanel, Tabs
 from bokeh.layouts import layout
 
 def plotGIWAXS(sample_name, save_path, q, frame_time, intensity):
