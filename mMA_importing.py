@@ -216,15 +216,16 @@ def getLogData(logParams, logFile):
         
     else:
         if logParams['LabviewPL']:
-            header = 93 # rows to skip
-            #names=np.array(['Time of Day', 'Time', 'Image Counts', 'Pyrometer', 'Dispense X', 'Dispense Z', 'Gas Quenching', 'Sine', 'Spin_Motor', 'BK Set Amps', 'BK Set Volts', 'BK Amps', 'BK Volts', 'BK Power', '2D Image', 'Spectrometer'])
             names=np.array(['Time of Day', 'Time', 'Image Counts', 'Pyrometer', 'Dispense X', 'Dispense Z', 'Gas Quenching', 'Sine', 'Spin_Motor', 'BK Set Amps', 'BK Set Volts', 'BK Amps', 'BK Volts', 'BK Power', '2D Image', 'Spectrometer'])
-            
         else:
-            header = 16 # rows to skip 
             names=np.array(['Time of Day', 'Time', 'Pyrometer', 'Dispense X', 'Dispense Z', 'Gas Quenching', 'Spin_Motor', 'BK Set Amps', 'BK Set Volts', 'BK Amps', 'BK Volts', 'BK Power', 'Sine'])
             
-
+        with open(logFile) as f:
+            for i, l in enumerate(f):
+                if l.startswith('DATA'):
+                    header = i+1
+                    break
+                
         logData = pd.read_csv(logFile, sep='\t', header = 0, names = names, skiprows = header)
         logSelection = ['Time', 'Pyrometer', 'Spin_Motor', 'Dispense X']
         logDataSelect = logData[logSelection]
