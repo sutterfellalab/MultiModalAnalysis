@@ -10,7 +10,8 @@ import os
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 from bokeh.palettes import Viridis256, Greys256
 from bokeh.plotting import figure, output_file, save
-from bokeh.models import LinearColorMapper, ColorBar, NumericInput, LinearAxis, Range1d, HoverTool, Panel, Tabs, CheckboxGroup, CustomJS
+from bokeh.models import LinearColorMapper, ColorBar, NumericInput, LinearAxis, Range1d, HoverTool, CheckboxGroup, CustomJS
+from bokeh.models.layouts import TabPanel, Tabs
 from bokeh.layouts import layout
 
 def plotGIWAXS(sample_name, save_path, q, frame_time, intensity):
@@ -263,7 +264,7 @@ def htmlPlots(genParams, time_pl, y_pl, z_pl, time_giwaxs, y_giwaxs, z_giwaxs, y
         
         p_pl.add_tools(HoverTool(renderers=[plot1], tooltips=[("Time", "$x"), ("Energy", "$y"), ("Intensity", "@image")]))
         
-        tab1 = Panel(child=p_pl, title="PL")
+        tab1 = TabPanel(child=p_pl, title="PL")
         
         if genParams['TempOld']:
             if genParams['Logging']:
@@ -309,7 +310,7 @@ def htmlPlots(genParams, time_pl, y_pl, z_pl, time_giwaxs, y_giwaxs, z_giwaxs, y
         speed_pl = []
         numeric_input_pl = []
         
-        tab1 = Panel(child=p_pl, title="PL")
+        tab1 = TabPanel(child=p_pl, title="PL")
         
     
     #%%GIWAXS-Plot
@@ -340,7 +341,7 @@ def htmlPlots(genParams, time_pl, y_pl, z_pl, time_giwaxs, y_giwaxs, z_giwaxs, y
         
         p_giwaxs.add_tools(HoverTool(renderers=[plot2], tooltips=[("Time", "$x"), ("q", "$y"), ("Intensity", "@image")]))
         
-        tab2 = Panel(child=p_giwaxs, title="GIWAXS")
+        tab2 = TabPanel(child=p_giwaxs, title="GIWAXS")
         
         # Setting the second y axis range name and range
         if genParams['TempOld']:
@@ -376,7 +377,7 @@ def htmlPlots(genParams, time_pl, y_pl, z_pl, time_giwaxs, y_giwaxs, z_giwaxs, y
         speed_giwaxs = []
         numeric_input_giwaxs = []
         
-        tab2 = Panel(child=p_pl, title="GIWAXS")
+        tab2 = TabPanel(child=p_pl, title="GIWAXS")
     
     
     #%%Logging
@@ -400,7 +401,7 @@ def htmlPlots(genParams, time_pl, y_pl, z_pl, time_giwaxs, y_giwaxs, z_giwaxs, y
              
             p_log.add_tools(HoverTool(tooltips=[("Time", "$x"), ("Temperature", "@Pyrometer")]))
             
-            tab3 = Panel(child=p_log, title="LOG")
+            tab3 = TabPanel(child=p_log, title="LOG")
         else:
             p_log = figure(
             x_range= (0, time_log.max()),
@@ -423,7 +424,7 @@ def htmlPlots(genParams, time_pl, y_pl, z_pl, time_giwaxs, y_giwaxs, z_giwaxs, y
              
             p_log.add_tools(HoverTool(tooltips=[("Time", "$x"), ("Temperature", "@Pyrometer"), ("Spin speed", "@Spin_Motor")]))
             
-            tab3 = Panel(child=p_log, title="LOG")
+            tab3 = TabPanel(child=p_log, title="LOG")
             
     else:
         p_log = figure(
@@ -438,7 +439,7 @@ def htmlPlots(genParams, time_pl, y_pl, z_pl, time_giwaxs, y_giwaxs, z_giwaxs, y
         p_log.yaxis.axis_label = 'Temperature'
         p_log.grid.visible = False
         
-        tab3 = Panel(child=p_pl, title="LOG")
+        tab3 = TabPanel(child=p_pl, title="LOG")
         
         timeLogStart = 1
     
