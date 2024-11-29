@@ -48,7 +48,7 @@ class MMAnalysis(object):
                 GIWAXS_file = glob.glob(folder + '/GIWAXS' + "/*.dat")[0]
                 GIWAXS_data = pd.read_csv(GIWAXS_file, sep='\s+', header=0, names=np.array(
                     ['image_num', 'twotheta', 'twotheta_cuka', 'dspacing', 'qvalue', 'intensity', 'frame_number', 'izero',
-                      'date', 'time']))
+                      'date', 'time', 'AM/PM']))
         
                 self.qRaw, self.giwaxsTimeRaw, self.giwaxsIntensityRaw = self.convertGIWAXS_data(GIWAXS_data, self.sampleName, self.outputPath)
                 
@@ -100,7 +100,7 @@ class MMAnalysis(object):
             #self.contourGIWAXSRaw = mMA_plots.plotGIWAXS(sample_name, save_path, q, frame_time, intensity)
             mMA_plots.plotGIWAXS(sample_name, save_path, q, frame_time, intensity)
             
-            if self.plParams['Labview']:
+            if self.genParams['LabviewPL']:
             
                 mMA_GUIs.inputGUI(self.inputDict, "Input_GIWAXS", 4, "Select Ranges", ['Please set the start time (in s):', 'Please set the end time (in s):', 'Please set the lower q (in A-1): ',
                                                                'Please set the upper q (in A-1): '], "Automated guess: " 
@@ -220,7 +220,7 @@ class MMAnalysis(object):
             self.logTimeEndIdx = next(tStart for tStart, valStart in enumerate(logData.Time) if valStart > float(self.inputDict["Times_Logging"][1]))
             
             logDataTemp = logData.to_numpy()
-            logDataTemp = logDataTemp[self.logTimeStartIdx-1:self.logTimeEndIdx+1,:]
+            logDataTemp = logDataTemp[self.logTimeStartIdx-1:self.logTimeEndIdx+1,:] #need to take care of case where start is 0
             logDataTemp[:,0] = logDataTemp[:,0] - logDataTemp[0,0]
 
             self.logDataPost = pd.DataFrame(logDataTemp, columns = ['Time','Pyrometer','Spin_Motor', 'Dispense X'])

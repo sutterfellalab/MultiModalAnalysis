@@ -37,6 +37,9 @@ def convertGIWAXS_data(GIWAXS_data, sample_name, save_path):
 
     beginTime = GIWAXS_data.time[0]
     endTime = GIWAXS_data.time[len(GIWAXS_data)-1]
+    print(beginTime)
+    print(endTime)
+    #beginTime = datetime.datetime.fromtimestamp(os.path.getctime(file_path))
 
     FMT = '%H:%M:%S'
     tdelta = datetime.strptime(endTime, FMT) - datetime.strptime(beginTime, FMT)
@@ -54,7 +57,7 @@ def convertGIWAXS_data(GIWAXS_data, sample_name, save_path):
     frames_numbers = np.unique(GIWAXS_data["frame_number"])
     q_values = np.unique(GIWAXS_data["qvalue"])
     
-    begin_time = datetime.strptime(beginTime, FMT)
+    # begin_time = datetime.strptime(beginTime, FMT)
     
     full_intensity = []
     frame_times    = []
@@ -64,12 +67,15 @@ def convertGIWAXS_data(GIWAXS_data, sample_name, save_path):
         
         data = pd_frame[['intensity', 'izero']].to_numpy()
         
-        new_time = datetime.strptime(pd_frame["time"].iloc[0], FMT)
-        
+        #new_time = datetime.strptime(pd_frame["time"].iloc[0], FMT)
+        new_time = frame_nr*time_per_frame
         
         full_intensity.append(np.divide(data[:,0], data[:,1]))
-        frame_times.append((new_time - begin_time).seconds)
-    
+        frame_times.append(new_time)
+        # frame_times.append((new_time - begin_time).seconds)
+        
+    print(np.average(GIWAXS_data['izero'].unique()))
+    print()
     
     return (q_values, np.array(frame_times), np.array(full_intensity))
 
@@ -86,9 +92,11 @@ def getPLData(plParams, PL_files, folder, logTimes):
             fileNum = fileTemp3[-1].split('.')[0]
             
             if len(fileNum) == 3:
-                os.rename(PL_files[i], os.path.join(folder, fileTemp3[0] + ' ' + fileTemp3[1] + ' ' + fileTemp3[2] + ' ' + '00' + fileTemp3[3]))
+                os.rename(PL_files[i], os.path.join(folder, fileTemp3[0] + ' ' + fileTemp3[1] + ' ' + '00' + fileTemp3[2]))
+                # os.rename(PL_files[i], os.path.join(folder, fileTemp3[0] + ' ' + fileTemp3[1] + ' ' + fileTemp3[2] + ' ' + fileTemp3[3] + ' ' + fileTemp3[4] + ' ' + '00' + fileTemp3[5]))
             elif len(fileNum) == 4:
-                os.rename(PL_files[i], os.path.join(folder, fileTemp3[0] + ' ' + fileTemp3[1] + ' ' + fileTemp3[2] + ' ' + '0' + fileTemp3[3]))
+                os.rename(PL_files[i], os.path.join(folder, fileTemp3[0] + ' ' + fileTemp3[1] + ' ' + '0' + fileTemp3[2]))
+                # os.rename(PL_files[i], os.path.join(folder, fileTemp3[0] + ' ' + fileTemp3[1] + ' ' + fileTemp3[2] + ' ' + fileTemp3[3] + ' ' + fileTemp3[4] + ' ' + '0' + fileTemp3[5]))
         
     else:
     
@@ -216,10 +224,14 @@ def getLogData(logParams, logFile):
         
     else:
         if logParams['LabviewPL']:
-            names=np.array(['Time of Day', 'Time', 'Image Counts', 'Pyrometer', 'Dispense X', 'Dispense Z', 'Gas Quenching', 'Sine', 'Spin_Motor', 'BK Set Amps', 'BK Set Volts', 'BK Amps', 'BK Volts', 'BK Power', '2D Image', 'Spectrometer'])
+            # Old files:
+            # names=np.array(['Time of Day', 'Time', 'Image Counts', 'Pyrometer', 'Dispense X', 'Dispense Z', 'Gas Quenching', 'Sine', 'Spin_Motor', 'BK Set Amps', 'BK Set Volts', 'BK Amps', 'BK Volts', 'BK Power', '2D Image', 'Spectrometer'])
+            # New files:
+            names=np.array(['Time of Day', 'Time', 'Image Counts', 'Pyrometer', 'Spin_Motor', 'BK Set Amps', 'BK Set Volts', 'BK Amps', 'BK Volts', 'BK Watts', 'BK Resistance', 'Dispense X', 'Dispense Z', 'Gas Quenching', 'Crystal 1 Encoder',	'Crystal 2 Encoder',	'Mono Energy',	'Beam Current', 'SR Energy',	'Counter 0',	'Counter 1',	'Counter 2',	'Counter 3',	'Counter Gate',	'Vert Centroid',	'Horz Centroid',	'Vert FWHM',	'Horz FWHM',	'M1 Bend 1',	'M1 Bend 2',	'Horizontal KBTranslation',	'Horizontal KB Pitch',	'Horizontal KB Bend 1',	'Horizontal KB Bend 2', 'Horizontal KB Roll',	'Horizontal KB Z', 'Vertical KB Translation',	'Vertical KB Pitch',	'Vertical KB Bend 1',	'Vertical KB Bend 2', 'Vertical KB Roll',	'TC KB Horz', 'TC Hutch 1',	'TC Tank 1',	'TC Hutch 2',	'TC Tank 2',	'TC Hutch 3', 'TC Tank 3',	'TC Hutch 4',	'Strain Gauge Channel 0',	'Strain Gauge Channel 1',	'AI Channel 0	', 'AI Channel 1',	'AI Channel 2	', 'Load Stage Strain Gauge',	'Load Stage LVDT',	'Centroid Intensity',	'Video Background',	'Absolute Horz Centroid',	'Absolute Vertical Centroid',	'LabVIEW Memory',	'Fake Motor 1',	'Fake Motor 2	', '2D Image',	'QEPro'])
         else:
-            names=np.array(['Time of Day', 'Time', 'Pyrometer', 'Dispense X', 'Dispense Z', 'Gas Quenching', 'Spin_Motor', 'BK Set Amps', 'BK Set Volts', 'BK Amps', 'BK Volts', 'BK Power', 'Sine'])
-            
+            # names=np.array(['Time of Day', 'Time', 'Pyrometer', 'Dispense X', 'Dispense Z', 'Gas Quenching', 'Spin_Motor', 'BK Set Amps', 'BK Set Volts', 'BK Amps', 'BK Volts', 'BK Power', 'Sine'])
+            names=np.array(['Time of Day', 'Time', 'Image Counts', 'Pyrometer', 'Spin_Motor', 'BK Set Amps', 'BK Set Volts', 'BK Amps', 'BK Volts', 'BK Watts', 'BK Resistance', 'Dispense X', 'Dispense Z', 'Gas Quenching', 'Crystal 1 Encoder',	'Crystal 2 Encoder',	'Mono Energy',	'Beam Current', 'SR Energy',	'Counter 0',	'Counter 1',	'Counter 2',	'Counter 3',	'Counter Gate',	'Vert Centroid',	'Horz Centroid',	'Vert FWHM',	'Horz FWHM',	'M1 Bend 1',	'M1 Bend 2',	'Horizontal KBTranslation',	'Horizontal KB Pitch',	'Horizontal KB Bend 1',	'Horizontal KB Bend 2', 'Horizontal KB Roll',	'Horizontal KB Z', 'Vertical KB Translation',	'Vertical KB Pitch',	'Vertical KB Bend 1',	'Vertical KB Bend 2', 'Vertical KB Roll',	'TC KB Horz', 'TC Hutch 1',	'TC Tank 1',	'TC Hutch 2',	'TC Tank 2',	'TC Hutch 3', 'TC Tank 3',	'TC Hutch 4',	'Strain Gauge Channel 0',	'Strain Gauge Channel 1',	'AI Channel 0	', 'AI Channel 1',	'AI Channel 2	', 'Load Stage Strain Gauge',	'Load Stage LVDT',	'Centroid Intensity',	'Video Background',	'Absolute Horz Centroid',	'Absolute Vertical Centroid',	'LabVIEW Memory',	'Fake Motor 1',	'Fake Motor 2	', '2D Image',	'QEPro'])
+        
         with open(logFile) as f:
             for i, l in enumerate(f):
                 if l.startswith('DATA'):
@@ -229,5 +241,5 @@ def getLogData(logParams, logFile):
         logData = pd.read_csv(logFile, sep='\t', header = 0, names = names, skiprows = header)
         logSelection = ['Time', 'Pyrometer', 'Spin_Motor', 'Dispense X']
         logDataSelect = logData[logSelection]
-            
+        
     return logDataSelect
