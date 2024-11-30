@@ -31,7 +31,7 @@ from .io.importing import convertGIWAXS_data, getPLData, getLogData
 
 class MMAnalysis(object):
 
-    def __init__(self, name=None, restart_file=None):
+    def __init__(self, name=None, restart_file=None, folder=None):
 
         if restart_file is not None:
 
@@ -44,11 +44,15 @@ class MMAnalysis(object):
             self.inputDict = {}
             
             self.genParams = settings.generalParameters()
-
-            folder = filedialog.askdirectory()
+            
+            if folder is None:
+                folder = filedialog.askdirectory()
+                
             self.sampleName = ntpath.basename(folder)
+            
             os.makedirs(folder + '/output', exist_ok=True)
             os.makedirs(folder + '/output/fits', exist_ok=True)
+            
             self.outputPath = folder + '/output'
 
             if self.genParams['GIWAXS']:
@@ -366,11 +370,13 @@ class MMAnalysis(object):
         
         if genParams['TempOld']:
             
-            plots.htmlPlots(genParams, timePL, energyPL, intPL, timeGIWAXS, q, intGIWAXS, logData.Pyrometer, [], logData.Time, savePath, sampleName)
+            plots.htmlPlots(genParams, timePL, energyPL, intPL, timeGIWAXS, q,
+                            intGIWAXS, logData.Pyrometer, [], logData.Time, savePath, sampleName)
         
         else:
         
-            plots.htmlPlots(genParams, timePL, energyPL, intPL, timeGIWAXS, q, intGIWAXS, logData.Pyrometer, logData.Spin_Motor, logData.Time, savePath, sampleName)
+            plots.htmlPlots(genParams, timePL, energyPL, intPL, timeGIWAXS, q,
+                            intGIWAXS, logData.Pyrometer, logData.Spin_Motor, logData.Time, savePath, sampleName)
         
         return
 
