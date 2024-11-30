@@ -1,0 +1,8 @@
+numpy
+scipy
+pandas
+dill
+matplotlib
+tkinter
+lmfit
+bokeh
