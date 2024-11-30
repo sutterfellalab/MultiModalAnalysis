@@ -44,7 +44,7 @@ def plotGIWAXS(sample_name, save_path, q, frame_time, intensity):
     q_min, q_max = (q[0], q[-1])
     y_ticks = np.linspace(q_min, q_max, 20)  # number of tickmarks
     ax.set_xlabel('Time (s)')
-    ax.set_ylabel(r'Q $(\AA^{-1})$')
+    ax.set_ylabel(r'Q $(Å^{-1})$')
     ax.set_yticks(y_ticks)
     ax.yaxis.tick_right()
     ax.yaxis.set_label_position("right")
@@ -208,7 +208,7 @@ def plotStacked(genParams, sampleName, savePath, q, timeGIWAXS, intGIWAXS, energ
     cbax2 = fig.add_axes(giwaxsBarPos)
     cb2 = fig.colorbar(cp2, ax = ax2, cax=cbax2, ticks = np.linspace(i_min/i_max, 1, 2))
     cb2.set_label('Norm. Intensity', fontsize = 12, labelpad=-1)
-    ax2.set_ylabel(r'q ($\AA^{-1}$)', fontsize = 12)
+    ax2.set_ylabel(r'q ($Å^{-1}$)', fontsize = 12)
 
     # Logging plot
     ax3.plot(logData.Time, logData.Pyrometer, 'r-')
