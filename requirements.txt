@@ -3,6 +3,7 @@ scipy
 pandas
 dill
 matplotlib
-tkinter
+tk
 lmfit
 bokeh
+tqdm
