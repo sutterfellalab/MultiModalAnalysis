@@ -1,6 +1,6 @@
-# Multi Modal Analysis
+# Multi-Modal Analysis
 
-This repository contains a Python script designed for analysis tasks related to MMAnalysis. The script performs various data processing tasks including logging data selection, GIWAXS data selection, and PL data selection. It also allows for peak fitting and generates stacked plots.
+This repository contains a Python script designed for the analysis of multimodal in-situ data taken at beamline 12.3.2 of the Advanced Lightsource (ALS). The script performs various data processing tasks including timestamp-adjustment, data selection, peak fitting, and various ways of data visualization. It uses in-situ photoluminescence (PL) and (grazing incidence) wide-angle X-ray scattering (GI-WAXS) data as well as logged process parameters as input. The GI-WAXS data have to be pre-processed, e.g. calibrated and integrated, using XRDSol. MMAnalysis will look for one folder per sample to analyze, which should contain three subfolders: a folder labeled "GIWAXS" containing the scan.dat-output from XRDSol, a folder labeled "PL" containing the individual PL spectra as recorded at the beamline, and a folder labeled "Logfile" containing the file created by the LabView process control software at 12.3.2. 
 
 ## Requirements
 
@@ -55,9 +55,10 @@ pip install .
 ## Features
 
 - **Logging Data Selection**: Automatically suggests start times and plots raw and post-processed log data.
-- **GIWAXS Data Selection**: Automatically finds start times, plots raw and post-processed GIWAXS data, and performs peak fitting.
-- **PL Data Selection**: Plots raw and post-processed PL data, optimizes data for plotting, and performs peak fitting.
+- **GIWAXS Data Selection**: Automatically finds suggested start times, plots raw and post-processed GIWAXS data, and performs peak fitting. Additionally, it gives an option to extract individual frames for x-y-plots.
+- **PL Data Selection**: Plots raw and post-processed PL data (PL data have the same timestamp as the logging data), optimizes data for plotting, and performs peak fitting. Additionally, it gives an option to extract individual frames for x-y-plots.
 - **Stacked Plots**: Generates stacked plots for combined GIWAXS, PL, and logging data.
+- **Output: the script creates a new "output" folder containing all the images displayed during execution as well as all relevant data in .csv files
 
 ## Contact
 
