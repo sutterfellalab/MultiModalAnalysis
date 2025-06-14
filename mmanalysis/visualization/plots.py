@@ -14,6 +14,27 @@ from bokeh.models import LinearColorMapper, ColorBar, NumericInput, LinearAxis, 
 from bokeh.models.layouts import TabPanel, Tabs
 from bokeh.layouts import layout
 
+def plotLog(sampleName, savePath, logData):
+    
+    fig, ax1 = plt.subplots()
+    
+    ax1.set_xlabel('Time (s)', fontsize = 12)
+    ax1.set_ylabel(r'Temperature ($^{\circ}$C)', fontsize = 12, color='r')
+    ax1.plot(logData.iloc[:,0], logData.iloc[:,4], 'r-')
+    # ax1.set_ylim([0, 105])
+
+    ax2 = ax1.twinx()
+    ax2.set_ylabel(r'Spin Speed (rpm)', fontsize = 12, color='b')
+    ax2.plot(logData.iloc[:,0], logData.iloc[:,5], 'b-')
+    
+    plt.title(sampleName + ' Logged Parameters')
+    plt.savefig(os.path.join(savePath, str(sampleName) + '_LoggedParameters_Plot'), dpi=300, bbox_inches="tight")
+    plt.show(block=False)
+    plt.pause(1)
+    
+    return fig
+
+
 def plotGIWAXS(sample_name, save_path, q, frame_time, intensity):
 
     '''
@@ -37,14 +58,14 @@ def plotGIWAXS(sample_name, save_path, q, frame_time, intensity):
     ax = fig.add_axes([left, bottom, width, height])
 
     # add the contour plot and a colorbar
-    cp = plt.contourf(frame_time, q, intensity.T)
+    cp = plt.contourf(frame_time, q, np.log(intensity.T))
     plt.colorbar(cp, location='left')
 
     # define axis names, ticks, etc.
     q_min, q_max = (q[0], q[-1])
     y_ticks = np.linspace(q_min, q_max, 20)  # number of tickmarks
     ax.set_xlabel('Time (s)')
-    ax.set_ylabel(r'Q $(Å^{-1})$')
+    ax.set_ylabel(r'Q $(\AA^{-1})$')
     ax.set_yticks(y_ticks)
     ax.yaxis.tick_right()
     ax.yaxis.set_label_position("right")
@@ -55,6 +76,7 @@ def plotGIWAXS(sample_name, save_path, q, frame_time, intensity):
     plt.pause(1)
 
     return fig
+
     
 def plotPL(plParams, sampleName, savePath, energyData, timeData, intensityData, intensityDataLog):
     
@@ -71,7 +93,7 @@ def plotPL(plParams, sampleName, savePath, energyData, timeData, intensityData, 
         plt.savefig(os.path.join(savePath, str(sampleName) + '_PL_Plot_Log'), dpi=300, bbox_inches="tight")
         plt.show(block=False)
         plt.pause(1)
-    
+  
     fig = plt.figure(figsize=(7, 5))
     plt.contourf(timeData, energyData, intensityData, 20, cmap=plt.cm.jet)
     # Make a colorbar for the ContourSet
@@ -85,8 +107,8 @@ def plotPL(plParams, sampleName, savePath, energyData, timeData, intensityData, 
     plt.show(block=False)
     plt.pause(1)
 
-    
     return fig
+
 
 def plotIndividually(axisDescription, fileName, sampleName, savePath, xData, timesToPlot, intensityToPlot, timeData):
 
@@ -119,26 +141,6 @@ def plotIndividually(axisDescription, fileName, sampleName, savePath, xData, tim
     
     return fig
 
-
-def plotLog(sampleName, savePath, logData, new):
-    
-    fig, ax1 = plt.subplots()
-    
-    ax1.set_xlabel('Time (s)', fontsize = 12)
-    ax1.set_ylabel(r'Temperature ($^{\circ}$C)', fontsize = 12, color='r')
-    ax1.plot(logData.Time, logData.Pyrometer, 'r-')
-    # ax1.set_ylim([0, 105])
-    if new:
-        ax2 = ax1.twinx()
-        ax2.set_ylabel(r'Spin Speed (rpm)', fontsize = 12, color='b')
-        ax2.plot(logData.Time, logData.Spin_Motor, 'b-')
-    
-    plt.title(sampleName + ' Logged Parameters')
-    plt.savefig(os.path.join(savePath, str(sampleName) + '_LoggedParameters_Plot'), dpi=300, bbox_inches="tight")
-    plt.show(block=False)
-    plt.pause(1)
-    
-    return fig
     
 def plotStacked(genParams, sampleName, savePath, q, timeGIWAXS, intGIWAXS, energyPL, timePL, intPL, logData, logTimeEndIdx):
     
@@ -208,29 +210,27 @@ def plotStacked(genParams, sampleName, savePath, q, timeGIWAXS, intGIWAXS, energ
     cbax2 = fig.add_axes(giwaxsBarPos)
     cb2 = fig.colorbar(cp2, ax = ax2, cax=cbax2, ticks = np.linspace(i_min/i_max, 1, 2))
     cb2.set_label('Norm. Intensity', fontsize = 12, labelpad=-1)
-    ax2.set_ylabel(r'q ($Å^{-1}$)', fontsize = 12)
+    ax2.set_ylabel(r'q ($\AA^{-1}$)', fontsize = 12)
 
     # Logging plot
-    ax3.plot(logData.Time, logData.Pyrometer, 'r-')
+    ax3.plot(logData.iloc[:,0], logData.iloc[:,4], 'r-')
     ax3.set_xlabel('Time (s)', fontsize = 12)
     ax3.set_ylabel(r'Temperature ($^{\circ}$C)', fontsize = 12, color='r')
     # ax3.set_ylim([0, 105])
-    if not genParams['TempOld']:
-        ax4 = ax3.twinx()
-        ax4.plot(logData.Time, logData.Spin_Motor, 'b-')
-        ax4.set_ylabel(r'Spin speed (rpm)', fontsize = 12, color='b')
-        plt.subplots_adjust(right=0.88, top=0.97, bottom = 0.1, hspace=0.1)
-    else:
-        plt.subplots_adjust(right=0.88, top=0.97, bottom = 0.1, hspace=0.1)
+    ax4 = ax3.twinx()
+    ax4.plot(logData.iloc[:,0], logData.iloc[:,5], 'b-')
+    ax4.set_ylabel(r'Spin speed (rpm)', fontsize = 12, color='b')
+    plt.subplots_adjust(right=0.88, top=0.97, bottom = 0.1, hspace=0.1)
 
     # General settings for the figure
-    ax3.set_xlim(0, logData.Time.iloc[-1]) # assumption that logging was terminated last, change to different axis otherwise
+    ax3.set_xlim(0, logData.iloc[-1,0]) # assumption that logging was terminated last, change to different axis otherwise
     # supress fig.subtitle(sample_name) if no plot title is desired
     # fig.subtitle(sample_name)
     plt.savefig(os.path.join(savePath, sampleName + '_Stacked_Plot.png'), dpi = 300, bbox_inches = "tight")
     plt.show()
     
     return fig
+
 
 def htmlPlots(genParams, time_pl, y_pl, z_pl, time_giwaxs, y_giwaxs, z_giwaxs, y_pyro, y_spin, time_log, directory, sample): 
 
@@ -266,32 +266,19 @@ def htmlPlots(genParams, time_pl, y_pl, z_pl, time_giwaxs, y_giwaxs, z_giwaxs, y
         
         tab1 = TabPanel(child=p_pl, title="PL")
         
-        if genParams['TempOld']:
-            if genParams['Logging']:
-                # Setting the second y axis range name and range
-                p_pl.extra_y_ranges = {"Temperature (°C)": Range1d(start=0, end=1.05 * y_pyro.max())}
-                
-                p_pl.add_layout(LinearAxis(y_range_name="Temperature (°C)", axis_label='Temperature (°C)'), 'right')
-                temp_pl = p_pl.line(time_log, y_pyro, x="Time", y="Pyrometer", line_width = 1, y_range_name="Temperature (°C)", color="firebrick")
-            else:
-                temp_pl = []
-                speed_pl = []
-                numeric_input_pl = []
+        if genParams['Logging']:
+            # Setting the second y axis range name and range
+            p_pl.extra_y_ranges = {"Temperature (°C)": Range1d(start=0, end=1.05 * y_pyro.max()), "Spin Speed (rpm)": Range1d(start=0, end=1.05 * y_spin.max())}
             
+            p_pl.add_layout(LinearAxis(y_range_name="Temperature (°C)", axis_label='Temperature (°C)'), 'right')
+            temp_pl = p_pl.line(time_log, y_pyro, x="Time", y="Pyrometer", line_width = 1, y_range_name="Temperature (°C)", color="firebrick")
+            
+            p_pl.add_layout(LinearAxis(y_range_name="Spin Speed (rpm)", axis_label='Spin Speed (rpm)'), 'left')
+            speed_pl = p_pl.line(time_log, y_spin, x="Time", y="Spin_Motor", line_width = 1, y_range_name="Spin Speed (rpm)", color="steelblue")
         else:
-            if genParams['Logging']:
-                # Setting the second y axis range name and range
-                p_pl.extra_y_ranges = {"Temperature (°C)": Range1d(start=0, end=1.05 * y_pyro.max()), "Spin Speed (rpm)": Range1d(start=0, end=1.05 * y_spin.max())}
-                
-                p_pl.add_layout(LinearAxis(y_range_name="Temperature (°C)", axis_label='Temperature (°C)'), 'right')
-                temp_pl = p_pl.line(time_log, y_pyro, x="Time", y="Pyrometer", line_width = 1, y_range_name="Temperature (°C)", color="firebrick")
-                
-                p_pl.add_layout(LinearAxis(y_range_name="Spin Speed (rpm)", axis_label='Spin Speed (rpm)'), 'left')
-                speed_pl = p_pl.line(time_log, y_spin, x="Time", y="Spin_Motor", line_width = 1, y_range_name="Spin Speed (rpm)", color="steelblue")
-            else:
-                temp_pl = []
-                speed_pl = []
-                numeric_input_pl = []
+            temp_pl = []
+            speed_pl = []
+            numeric_input_pl = []
                 
     else:
         p_pl = figure(
@@ -344,21 +331,13 @@ def htmlPlots(genParams, time_pl, y_pl, z_pl, time_giwaxs, y_giwaxs, z_giwaxs, y
         tab2 = TabPanel(child=p_giwaxs, title="GIWAXS")
         
         # Setting the second y axis range name and range
-        if genParams['TempOld']:
-            p_giwaxs.extra_y_ranges = {"Temperature (°C)": Range1d(start=0, end=1.05 * y_pyro.max())}
-            
-            p_giwaxs.add_layout(LinearAxis(y_range_name="Temperature (°C)", axis_label='Temperature (°C)'), 'right')
-            temp_giwaxs = p_giwaxs.line(time_log, y_pyro, x="Time", y="Pyrometer", line_width = 1, y_range_name="Temperature (°C)", color="firebrick")
-            speed_giwaxs = []
-            
-        else:
-            p_giwaxs.extra_y_ranges = {"Temperature (°C)": Range1d(start=0, end=1.05 * y_pyro.max()), "Spin Speed (rpm)": Range1d(start=0, end=1.05 * y_spin.max())}
-            
-            p_giwaxs.add_layout(LinearAxis(y_range_name="Temperature (°C)", axis_label='Temperature (°C)'), 'right')
-            temp_giwaxs = p_giwaxs.line(time_log, y_pyro, x="Time", y="Pyrometer", line_width = 1, y_range_name="Temperature (°C)", color="firebrick")
-            
-            p_giwaxs.add_layout(LinearAxis(y_range_name="Spin Speed (rpm)", axis_label='Spin Speed (rpm)'), 'left')
-            speed_giwaxs = p_giwaxs.line(time_log, y_spin, x="Time", y="Spin_Motor", line_width = 1, y_range_name="Spin Speed (rpm)", color="steelblue")
+        p_giwaxs.extra_y_ranges = {"Temperature (°C)": Range1d(start=0, end=1.05 * y_pyro.max()), "Spin Speed (rpm)": Range1d(start=0, end=1.05 * y_spin.max())}
+        
+        p_giwaxs.add_layout(LinearAxis(y_range_name="Temperature (°C)", axis_label='Temperature (°C)'), 'right')
+        temp_giwaxs = p_giwaxs.line(time_log, y_pyro, x="Time", y="Pyrometer", line_width = 1, y_range_name="Temperature (°C)", color="firebrick")
+        
+        p_giwaxs.add_layout(LinearAxis(y_range_name="Spin Speed (rpm)", axis_label='Spin Speed (rpm)'), 'left')
+        speed_giwaxs = p_giwaxs.line(time_log, y_spin, x="Time", y="Spin_Motor", line_width = 1, y_range_name="Spin Speed (rpm)", color="steelblue")
             
     else:
         p_giwaxs = figure(
@@ -385,46 +364,28 @@ def htmlPlots(genParams, time_pl, y_pl, z_pl, time_giwaxs, y_giwaxs, z_giwaxs, y
 
         timeLogStart = time_log.max()
         
-        if genParams['TempOld']:
-            p_log = figure(
-            x_range= (0, time_log.max()),
-            y_range= (0, 105),#1.05 * y_pyro.max()),
-            width=1200,
-            height=640,
-            toolbar_location="above")
+        p_log = figure(
+        x_range= (0, time_log.max()),
+        y_range= (0, 1.05 * y_spin.max()),
+        width=1200,
+        height=640,
+        toolbar_location="above")
+    
+        p_log.title.text = f'{sample}_log'
+        p_log.xaxis.axis_label = 'Time (s)'
+        p_log.yaxis.axis_label = "Spin Speed (rpm)"
+        p_log.grid.visible = False
+        p_log.line(time_log, y_spin, x="Time", y="Spin_Motor", name = "Time", line_width = 2, color="steelblue")
         
-            p_log.title.text = f'{sample}_log'
-            p_log.xaxis.axis_label = 'Time (s)'
-            p_log.yaxis.axis_label = "Temperature (°C)"
-            p_log.grid.visible = False
-            p_log.line(time_log, y_pyro, x="Time", y="Pyrometer", line_width = 2, y_range_name="Temperature (°C)", color="firebrick")
-             
-            p_log.add_tools(HoverTool(tooltips=[("Time", "$x"), ("Temperature", "@Pyrometer")]))
-            
-            tab3 = TabPanel(child=p_log, title="LOG")
-        else:
-            p_log = figure(
-            x_range= (0, time_log.max()),
-            y_range= (0, 1.05 * y_spin.max()),
-            width=1200,
-            height=640,
-            toolbar_location="above")
+        # Setting the second y axis range name and range
+        p_log.extra_y_ranges = {"Temperature (°C)": Range1d(start=0, end=1.05 * y_pyro.max())}
+        p_log.add_layout(LinearAxis(y_range_name="Temperature (°C)", axis_label='Temperature (°C)'), 'right')
         
-            p_log.title.text = f'{sample}_log'
-            p_log.xaxis.axis_label = 'Time (s)'
-            p_log.yaxis.axis_label = "Spin Speed (rpm)"
-            p_log.grid.visible = False
-            p_log.line(time_log, y_spin, x="Time", y="Spin_Motor", name = "Time", line_width = 2, color="steelblue")
-            
-            # Setting the second y axis range name and range
-            p_log.extra_y_ranges = {"Temperature (°C)": Range1d(start=0, end=1.05 * y_pyro.max())}
-            p_log.add_layout(LinearAxis(y_range_name="Temperature (°C)", axis_label='Temperature (°C)'), 'right')
-            
-            p_log.line(time_log, y_pyro, x="Time", y="Pyrometer", line_width = 2, y_range_name="Temperature (°C)", color="firebrick")
-             
-            p_log.add_tools(HoverTool(tooltips=[("Time", "$x"), ("Temperature", "@Pyrometer"), ("Spin speed", "@Spin_Motor")]))
-            
-            tab3 = TabPanel(child=p_log, title="LOG")
+        p_log.line(time_log, y_pyro, x="Time", y="Pyrometer", line_width = 2, y_range_name="Temperature (°C)", color="firebrick")
+         
+        p_log.add_tools(HoverTool(tooltips=[("Time", "$x"), ("Temperature", "@Pyrometer"), ("Spin speed", "@Spin_Motor")]))
+        
+        tab3 = TabPanel(child=p_log, title="LOG")
             
     else:
         p_log = figure(
