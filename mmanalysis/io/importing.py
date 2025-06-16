@@ -259,10 +259,3 @@ def getData(giwaxsParams, plParams, sampleNames, calib_file_path, outputPath, h5
         
                 
     return loggingData_batch, q_values_batch, giwaxsTime_batch, giwaxsData1D_batch, plTimePre_batch, plEnergyPre_batch, plDataPre_batch, plDataLogPre_batch
-
-
-        logData = pd.read_csv(logFile, sep='\t', header = 0, names = names, skiprows = header)
-        logSelection = ['Time', 'Pyrometer', 'Spin_Motor', 'Dispense X']
-        logDataSelect = logData[logSelection]
-        
-    return logDataSelect
