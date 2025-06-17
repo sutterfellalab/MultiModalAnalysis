@@ -23,7 +23,7 @@ from mmanalysis.mmanalysis import MMAnalysis
 
 def main(folder=None):
 
-    mMA_Object = mMA_class.MMAnalysis("MMA-Sample")
+    mMA_Object = MMAnalysis("MMA-Sample")
 
     for file in range(0, mMA_Object.numFiles):
         
@@ -56,7 +56,7 @@ def main(folder=None):
             continueMain = False
     
             while continueMain is False:
-    
+                
                 mMA_Object.plotGIWAXS(True, mMA_Object.sampleName[file], mMA_Object.outputPath, mMA_Object.qBatch[file], mMA_Object.giwaxsTimeBatch[file], mMA_Object.giwaxsIntensity2DBatch[file], file)
                 
                 mMA_Object.plotGIWAXS(False, mMA_Object.sampleName[file], mMA_Object.outputPath, mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsIntensityPost[file], file)

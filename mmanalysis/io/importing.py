@@ -6,14 +6,15 @@ Created on Mon Mar  6 10:41:39 2023
 """
 import numpy as np
 import pandas as pd
-import os
-import glob
 from scipy.signal import savgol_filter
 import copy
-from datetime import datetime, timedelta
 from tqdm import tqdm
-import mMA_pyFAICalibration
+import h5py
+import matplotlib.pyplot as plt
+import matplotlib.colors as colors
 from pyFAI.azimuthalIntegrator import AzimuthalIntegrator
+
+from .pyFAICalibration import giwaxsCalibration, refine_calibration
 
 def loadData(filePath, calibration):
     # Open the HDF5 file
@@ -60,10 +61,9 @@ def loadData(filePath, calibration):
         # List all datasets in the 'images' group
         loggingDataset = dataset['AI']
         loggingData = loggingDataset[...]
-        # loggingHeader1 = loggingDataset.attrs['Data Names']
-        # loggingHeader2 = loggingDataset.attrs['Images']
-        # loggingHeader = np.concatenate((loggingHeader1, loggingHeader2))
-        loggingHeader = loggingDataset.attrs['Data Names']
+        loggingHeader1 = loggingDataset.attrs['Data Names']
+        loggingHeader2 = loggingDataset.attrs['Images']
+        loggingHeader = np.concatenate((loggingHeader1, loggingHeader2))
         
     return plData, wlData, giwaxsData, loggingData, loggingHeader, baseImage
 
@@ -179,15 +179,15 @@ def getData(giwaxsParams, plParams, sampleNames, calib_file_path, outputPath, h5
         plData, wlData, giwaxsData2D, loggingData, loggingHeader, recalib_image = loadData(h5_files[i], None)
         giwaxsData1D = []
         q_values = []
-        
+        loggingHeader = np.append(loggingHeader, ['test1']) ##NEEDS TO BE REMOVED ONCE EARL UPDATES LABVIEW
         # Create and simplify logging dataframe:
         dfLoggingComplete = pd.DataFrame(loggingData, columns=loggingHeader)   
-        dfLogging = dfLoggingComplete[["Time (s)", "Pilatus Counts", "QEPro Counts", "Pyrometer", "Spin Motor", "Dispense X", "Gas Quenching"]]
+        dfLogging = dfLoggingComplete[["Time (s)", "Pilatus", "QEPro", "Pyrometer", "Spin Motor", "Dispense X", "Gas Quenching"]]
         
         # Create time arrays for PL and GIWAXS:
-        uniquePL, firstIdxPL = np.unique(dfLogging["QEPro Counts"].to_numpy(), return_index=True)
+        uniquePL, firstIdxPL = np.unique(dfLogging["QEPro"].to_numpy(), return_index=True)
         plTime = dfLogging["Time (s)"].to_numpy()[firstIdxPL]
-        uniqueGIWAXS, firstIdxGIWAXS = np.unique(dfLogging.iloc[:, dfLogging.columns.to_list().index('Pilatus Counts')].to_numpy(), return_index=True)
+        uniqueGIWAXS, firstIdxGIWAXS = np.unique(dfLogging.iloc[:, dfLogging.columns.to_list().index('Pilatus')].to_numpy(), return_index=True)
         giwaxsTime = dfLogging["Time (s)"].to_numpy()[firstIdxGIWAXS]
         
         # Re-calibration using the substrate of the actual sample
@@ -196,7 +196,7 @@ def getData(giwaxsParams, plParams, sampleNames, calib_file_path, outputPath, h5
             newPONIPath = outputPath + '/' + sampleNames[i] + '_ITO-calib.poni'
             print("Refining calibration for Sample " + sampleNames[i] + '...')
             # Perform substrate-recalibration
-            mMA_pyFAICalibration.refine_calibration(sampleNames[i], recalib_image.T, calib_file_path, recalib_calibrant_file, newPONIPath)
+            refine_calibration(sampleNames[i], recalib_image.T, calib_file_path, recalib_calibrant_file, newPONIPath)
             ai.load(newPONIPath)
             
         else:

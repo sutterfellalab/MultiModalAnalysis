@@ -20,12 +20,12 @@ def plotLog(sampleName, savePath, logData):
     
     ax1.set_xlabel('Time (s)', fontsize = 12)
     ax1.set_ylabel(r'Temperature ($^{\circ}$C)', fontsize = 12, color='r')
-    ax1.plot(logData.iloc[:,0], logData.iloc[:,4], 'r-')
+    ax1.plot(logData.iloc[:,0], logData.iloc[:,3], 'r-')
     # ax1.set_ylim([0, 105])
 
     ax2 = ax1.twinx()
     ax2.set_ylabel(r'Spin Speed (rpm)', fontsize = 12, color='b')
-    ax2.plot(logData.iloc[:,0], logData.iloc[:,5], 'b-')
+    ax2.plot(logData.iloc[:,0], logData.iloc[:,4], 'b-')
     
     plt.title(sampleName + ' Logged Parameters')
     plt.savefig(os.path.join(savePath, str(sampleName) + '_LoggedParameters_Plot'), dpi=300, bbox_inches="tight")

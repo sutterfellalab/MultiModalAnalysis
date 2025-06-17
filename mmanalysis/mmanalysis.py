@@ -14,6 +14,7 @@ import pandas as pd
 import glob
 import os
 import ntpath
+from pathlib import Path
 
 # save
 import dill
@@ -25,7 +26,7 @@ from tkinter import filedialog, simpledialog
 from .visualization import plots
 from .core import settings, fits
 from .gui import mma_gui
-from .io.importing import loadData, integrate_image, compute_average_intensity, create_roi, convertPL, getData
+from .io import importing, pyFAICalibration
 
 #%%
 
@@ -43,9 +44,9 @@ class MMAnalysis(object):
             
             self.inputDict = {}
             
-            self.genParams = mMA_settings.generalParameters()
-            self.giwaxsParams = mMA_settings.giwaxsParameters()
-            self.plParams = mMA_settings.plParameters()
+            self.genParams = settings.generalParameters()
+            self.giwaxsParams = settings.giwaxsParameters()
+            self.plParams = settings.plParameters()
             
             if self.giwaxsParams['GIWAXS-calibration'] == None:
                 
@@ -93,13 +94,13 @@ class MMAnalysis(object):
 
     def calibrateGIWAXS(self):
         
-        calibrationFile = mMA_pyFAICalibration.giwaxsCalibration(self.giwaxsParams)
+        calibrationFile = pyFAICalibration.giwaxsCalibration(self.giwaxsParams)
         
         return calibrationFile
     
     def getMMAData(self, giwaxsCalibFile, outputPath, h5_files):
         
-        logging, q, giwaxsTime, giwaxsData, plTime, energy, plData, plDataLog = mMA_importing.getData(self.giwaxsParams, self.plParams, self.sampleName, giwaxsCalibFile, outputPath, h5_files)
+        logging, q, giwaxsTime, giwaxsData, plTime, energy, plData, plDataLog = importing.getData(self.giwaxsParams, self.plParams, self.sampleName, giwaxsCalibFile, outputPath, h5_files)
         
         return logging, q, giwaxsTime, giwaxsData, plTime, energy, plData, plDataLog
 
@@ -108,9 +109,9 @@ class MMAnalysis(object):
         
         if logCut is True:
             
-            mMA_plots.plotLog(sampleName, savePath, logData)
+            plots.plotLog(sampleName, savePath, logData)
             
-            mMA_GUIs.inputGUI(self.inputDict, "Times_Logging", 2, "Select New Times", ['Please set the start time (in s):', 'Please set the end time (in s):'], "Automated guess for the starting time is " + str(self.loggingBatch[file].iloc[self.suggestedLogTimeIdx-1,0]) + ' s')
+            mma_gui.inputGUI(self.inputDict, "Times_Logging", 2, "Select New Times", ['Please set the start time (in s):', 'Please set the end time (in s):'], "Automated guess for the starting time is " + str(self.loggingBatch[file].iloc[self.suggestedLogTimeIdx-1,0]) + ' s')
             
             self.logTimeStartIdx.append(next(tStart for tStart, valStart in enumerate(logData.iloc[:,0]) if valStart > float(self.inputDict["Times_Logging"][0])))
             self.logTimeEndIdx.append(next(tStart for tStart, valStart in enumerate(logData.iloc[:,0]) if valStart > float(self.inputDict["Times_Logging"][1])))
@@ -123,7 +124,7 @@ class MMAnalysis(object):
             
         else:
                 
-            mMA_plots.plotLog(sampleName, savePath, logData)
+            plots.plotLog(sampleName, savePath, logData)
 
         return
 
@@ -132,10 +133,10 @@ class MMAnalysis(object):
 
         if GIWAXS_cut is True:
             
-            mMA_plots.plotGIWAXS(sample_name, save_path, q, frame_time, intensity)
+            plots.plotGIWAXS(sample_name, save_path, q, frame_time, intensity)
             
 
-            mMA_GUIs.inputGUI(self.inputDict, "Input_GIWAXS", 2, "Select Ranges", ['Please set the lower q (in A-1): ', 'Please set the upper q (in A-1): '], "")
+            mma_gui.inputGUI(self.inputDict, "Input_GIWAXS", 2, "Select Ranges", ['Please set the lower q (in A-1): ', 'Please set the upper q (in A-1): '], "")
 
             # Need to make the self.variables batches for multiple samples in one run
 
@@ -157,14 +158,14 @@ class MMAnalysis(object):
             
         else:
 
-            mMA_plots.plotGIWAXS(sample_name, save_path, q, frame_time, intensity)
+            plots.plotGIWAXS(sample_name, save_path, q, frame_time, intensity)
 
         return
     
     
     def giwaxsFits(self, sampleName, savePath, q, timeGIWAXS, intGIWAXS):
         
-        mMA_GUIs.inputGUI(self.inputDict, "GIWAXS-Fits", 3, "Select Ranges", ['Which peak do you want to fit? ', 'Please set the lower q threshold (in A-1): ',
+        mma_gui.inputGUI(self.inputDict, "GIWAXS-Fits", 3, "Select Ranges", ['Which peak do you want to fit? ', 'Please set the lower q threshold (in A-1): ',
                                                            'Please set the upper q threshold (in A-1): '], " ")
         
         #peakName = str(input('Which peak do you want to fit? ' ))
@@ -175,7 +176,7 @@ class MMAnalysis(object):
         
         show_every = int(len(timeGIWAXS)/5)                # int n, shows every n'th frame with fit
         
-        mMA_fits.fit_several_frames(q, timeGIWAXS, intGIWAXS, show_every, lowQIdx, highQIdx, sampleName, savePath, self.inputDict["GIWAXS-Fits"][0])
+        fits.fit_several_frames(q, timeGIWAXS, intGIWAXS, show_every, lowQIdx, highQIdx, sampleName, savePath, self.inputDict["GIWAXS-Fits"][0])
         
         return
     
@@ -184,7 +185,7 @@ class MMAnalysis(object):
         
         if plCut:
 
-            mMA_plots.plotPL(self.plParams, sampleName, savePath, energy, time, intensity, intensityLog)
+            plots.plotPL(self.plParams, sampleName, savePath, energy, time, intensity, intensityLog)
             
             # Background subtraction
             if self.plParams['bkgCorr']:
@@ -206,7 +207,7 @@ class MMAnalysis(object):
                     poly1d_fn = np.poly1d(coefs)
                     intensity[:, i] = intensity[:, i] - poly1d_fn(energy[:])
                       
-            mMA_GUIs.inputGUI(self.inputDict, "Input_PL", 2, "Select Ranges", ['Please set the lower energy threshold (in eV): ',
+            mma_gui.inputGUI(self.inputDict, "Input_PL", 2, "Select Ranges", ['Please set the lower energy threshold (in eV): ',
                                                                'Please set the upper energy threshold (in eV): '], '')
             
                  
@@ -234,7 +235,7 @@ class MMAnalysis(object):
             
         else:
                 
-            mMA_plots.plotPL(self.plParams, sampleName, savePath, energy, time, intensity, intensityLog)
+            plots.plotPL(self.plParams, sampleName, savePath, energy, time, intensity, intensityLog)
 
         return 
     
@@ -250,7 +251,7 @@ class MMAnalysis(object):
         minPeakWidth = [0.0] *int(numGauss)
         maxPeakWidth = [0.0] *int(numGauss)
         
-        mMA_GUIs.combinedGUI(self.inputDict, "PLFits_CenterGuesses","PLFits_CenterFixed?","PLFits_Propagate?", int(numGauss), "PL Fits", 
+        mma_gui.combinedGUI(self.inputDict, "PLFits_CenterGuesses","PLFits_CenterFixed?","PLFits_Propagate?", int(numGauss), "PL Fits", 
                              int(numGauss)*['Initial guess for Peak position (in eV): '], " ", int(numGauss)*["Fixed?"], int(numGauss)*["Propagate?"])
 
         for i in range(0, int(numGauss)):
@@ -276,7 +277,7 @@ class MMAnalysis(object):
                 
         show_every = int(len(timePL)/10)     # int n, shows every n'th frame with fit
                 
-        mMA_fits.plFitting(self.plParams, energyPL, timePL, intPL, show_every, numGauss, peakLowerTH, self.inputDict, peakUpperTH, estPeakWidth, minPeakWidth, maxPeakWidth, sampleName, savePath)
+        fits.plFitting(self.plParams, energyPL, timePL, intPL, show_every, numGauss, peakLowerTH, self.inputDict, peakUpperTH, estPeakWidth, minPeakWidth, maxPeakWidth, sampleName, savePath)
         
         return
     
@@ -285,7 +286,7 @@ class MMAnalysis(object):
         
         idxToPlot = []
         
-        mMA_GUIs.selectionGUI(self.inputDict, "Selection", "Do you want to extract individual measurements?", [
+        mma_gui.selectionGUI(self.inputDict, "Selection", "Do you want to extract individual measurements?", [
                 "No",
                 "Yes - just default ones",
                 "Yes - I want to select specific times",
@@ -307,14 +308,14 @@ class MMAnalysis(object):
             if numOfSpectra == 0:
                 return 'none'
             else:
-                mMA_GUIs.inputGUI(self.inputDict, "Select_" + types, numOfSpectra, "Select " + types, [' ']*numOfSpectra, 'Select the times you want to extract (in s):')
+                mma_gui.inputGUI(self.inputDict, "Select_" + types, numOfSpectra, "Select " + types, [' ']*numOfSpectra, 'Select the times you want to extract (in s):')
                 
             for i in range(0,len(self.inputDict["Select_" + types])):
                 idx = next(tStart for tStart, valStart in enumerate(timeData) if valStart > float(self.inputDict["Select_" + types][i]))
                 idxToPlot.append(idx)      
             
         elif selection == "Yes - all " + types + " in a specific time range":
-            mMA_GUIs.inputGUI(self.inputDict, "Select_Range", 2, "Select Time Range", ['Enter start time (in s): ', 'Enter end time (in s): '], 'Select the times range from which you want to extract ' + types + ':')
+            mma_gui.inputGUI(self.inputDict, "Select_Range", 2, "Select Time Range", ['Enter start time (in s): ', 'Enter end time (in s): '], 'Select the times range from which you want to extract ' + types + ':')
             startTimeIdx = next(tStart for tStart, valStart in enumerate(timeData) if valStart > float(self.inputDict["Select_Range"][0]))
             endTimeIdx = next(tEnd for tEnd, valStart in enumerate(timeData) if valStart > float(self.inputDict["Select_Range"][1]))
             idxToPlot = range(startTimeIdx-1, endTimeIdx + 1)
@@ -333,21 +334,21 @@ class MMAnalysis(object):
                 
         df = pd.DataFrame(intensityToPlot_array, columns=names)
         
-        mMA_plots.plotIndividually(axisDescription, fileName, sampleName, savePath, xData, idxToPlot, intensityToPlot, timeData)
+        plots.plotIndividually(axisDescription, fileName, sampleName, savePath, xData, idxToPlot, intensityToPlot, timeData)
         
         return df
 
     
     def plotStacked(self, genParams, sampleName, savePath, q, timeGIWAXS, intGIWAXS, energyPL, timePL, intPL, logData, logTimeEndIdx):
             
-        mMA_plots.plotStacked(genParams, sampleName, savePath, q, timeGIWAXS, intGIWAXS, energyPL, timePL, intPL, logData, logTimeEndIdx) 
+        plots.plotStacked(genParams, sampleName, savePath, q, timeGIWAXS, intGIWAXS, energyPL, timePL, intPL, logData, logTimeEndIdx) 
 
         return
 
        
     def saveHTMLs(self, genParams, timePL, energyPL, intPL, timeGIWAXS, q, intGIWAXS, logData, savePath, sampleName):
         
-        mMA_plots.htmlPlots(genParams, timePL, energyPL, intPL, timeGIWAXS, q, intGIWAXS, logData.iloc[:,4], logData.iloc[:,5], logData.iloc[:,0], savePath, sampleName)
+        plots.htmlPlots(genParams, timePL, energyPL, intPL, timeGIWAXS, q, intGIWAXS, logData.iloc[:,4], logData.iloc[:,5], logData.iloc[:,0], savePath, sampleName)
         
         return
 
