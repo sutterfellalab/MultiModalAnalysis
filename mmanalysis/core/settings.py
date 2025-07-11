@@ -5,36 +5,36 @@ Created on Thu Dec 22 11:56:04 2022
 @author: Tim Kodalle
 """
     
-def generalParameters():
+# def generalParameters():
     
-    genParams = {
-                    'GIWAXS' : True,
-                    'PL' : False,
-                    'Logging': True,
+#     genParams = {
+#                     'GIWAXS' : True,
+#                     'PL' : False,
+#                     'Logging': True,
                     
-                    'ImagePlots' : 'Node-centered',         # Igor Pro works node-centered, i.e. the x- and y- arrays mark the nodes or corners of each pixel in the z-data matrix
-                    # 'ImagePlots' : 'Pixel-centered        # Origin works pixel-centered, i.e. the x- and y- arrays mark the center of each pixel in the z-data matrix
-                    }
+#                     'ImagePlots' : 'Node-centered',         # Igor Pro works node-centered, i.e. the x- and y- arrays mark the nodes or corners of each pixel in the z-data matrix
+#                     # 'ImagePlots' : 'Pixel-centered        # Origin works pixel-centered, i.e. the x- and y- arrays mark the center of each pixel in the z-data matrix
+#                     }
     
-    return genParams
+#     return genParams
 
-def giwaxsParameters():
+# def giwaxsParameters():
     
-    giwaxsParams = {
-                    'GIWAXS-calibration': 'C:/Users/timko/OneDrive/Documents/ActiveProjects/Maged/Maged_Dec24/Maged/h5files/default_calibration.poni', 
-                    # 'GIWAXS-calibration': None,
+#     giwaxsParams = {
+#                     'GIWAXS-calibration': "G:/My Drive/Code/Multimodal_Analysis/mMA-Script_h5/files/default_calibration.poni",
+#                     # 'GIWAXS-calibration': None,
                     
-                    'calibrant' : 'G:/My Drive/Code/Multimodal_Analysis/mMA-Script_h5/files/alumina.D',
-                    'calibration-image' : 'G:/My Drive/Code/Multimodal_Analysis/mMA-Script_h5/files/Al2O3_calib_10keV_6p25_2p0_35p0_10s.tif',
-                    'energy' : '10',
-                    'default-poni' : "G:/My Drive/Code/Multimodal_Analysis/mMA-Script_h5/files/default_calibration.poni",
-                    'Re-calibrant' : 'ITO',
-                    'ITO-calibrant' : "G:/My Drive/Code/Multimodal_Analysis/mMA-Script_h5/files/ito_calibrant.D",
-                    'ai_npts' : 1000,
-                    'ai_range': [160, 180], ## Check after image rotation if this is still correct, consider larger range and/or mirroring it
-                    }
+#                     'calibrant' : 'G:/My Drive/Code/Multimodal_Analysis/mMA-Script_h5/files/alumina.D',
+#                     'calibration-image' : 'G:/My Drive/Code/Multimodal_Analysis/mMA-Script_h5/files/Example_Al2O3_calib_10keV_6p25_2p0_35p0_10s.tif',
+#                     'energy' : '10',
+#                     'default-poni' : "G:/My Drive/Code/Multimodal_Analysis/mMA-Script_h5/files/default_calibration.poni",
+#                     'Re-calibrant' : 'ITO',
+#                     'ITO-calibrant' : "G:/My Drive/Code/Multimodal_Analysis/mMA-Script_h5/files/ito_calibrant.D",
+#                     'ai_npts' : 1000,
+#                     'ai_range': [160, 180], ## Check after image rotation if this is still correct, consider larger range and/or mirroring it
+#                     }
     
-    return giwaxsParams
+#     return giwaxsParams
     
 def plParameters():
     

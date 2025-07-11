@@ -21,16 +21,26 @@ from mmanalysis.mmanalysis import MMAnalysis
 
 #%%
 
-def main(folder=None):
-
-    mMA_Object = MMAnalysis("MMA-Sample")
+def main(name=None, restart_file=None, folder=None, giwaxs=True, pl=True, logdata=True, igor=False):
+    
+    """Main function for the mmnalysis command-line interface."""
+    
+    mMA_Object = MMAnalysis(
+        name=name,
+        restart_file=restart_file, 
+        folder=folder,
+        giwaxs=giwaxs,
+        pl=pl,
+        logdata=logdata,
+        igor=igor
+        )
 
     for file in range(0, mMA_Object.numFiles):
         
         print("Data selection for Sample " + mMA_Object.sampleName[file] + "...")
         
         #%%
-        if mMA_Object.genParams['Logging']:
+        if mMA_Object.logging:
                     
             continueMain = False
         
@@ -51,7 +61,7 @@ def main(folder=None):
             mMA_Object.logDataPost[file].to_csv(mMA_Object.outputPath + '/'  + mMA_Object.sampleName[file] + '_Log-Data' + '.csv', index=0)
            
         #%%
-        if mMA_Object.genParams['GIWAXS']:
+        if mMA_Object.giwaxs:
         
             continueMain = False
     
@@ -82,7 +92,7 @@ def main(folder=None):
                 dfPatterns.to_csv(os.path.join(mMA_Object.outputPath, mMA_Object.sampleName[file] + '_Indv_GIWAXS-Patterns.csv'), index=None)
                 
         #%%    
-        if mMA_Object.genParams['PL']:
+        if mMA_Object.pl:
                         
             continueMain = False
             
@@ -114,35 +124,35 @@ def main(folder=None):
     
         #%%    
         
-        if mMA_Object.genParams['GIWAXS'] and mMA_Object.genParams['PL'] and mMA_Object.genParams['Logging']:
+        if mMA_Object.giwaxs and mMA_Object.pl and mMA_Object.logging:
             
-            print("Working on the stacked plots. This may take a minute...")
+            print("Please close all figures to continue.")
             
-            mMA_Object.plotStacked(mMA_Object.genParams, mMA_Object.sampleName[file], mMA_Object.outputPath, mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsIntensityPost[file], mMA_Object.plEnergyPost[file], mMA_Object.plTimePost[file], mMA_Object.plIntensityPost[file], mMA_Object.logDataPost[file], mMA_Object.logTimeEndIdx[file])
-            
-            mMA_Object.saveHTMLs(mMA_Object.genParams, mMA_Object.plTimePost[file], mMA_Object.plEnergyPost[file], mMA_Object.plIntensityPost[file], mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsIntensityPost[file], mMA_Object.logDataPost[file], mMA_Object.outputPath, mMA_Object.sampleName[file])
+            mMA_Object.plotStacked(mMA_Object.pl, mMA_Object.sampleName[file], mMA_Object.outputPath, mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsIntensityPost[file], mMA_Object.plEnergyPost[file], mMA_Object.plTimePost[file], mMA_Object.plIntensityPost[file], mMA_Object.logDataPost[file], mMA_Object.logTimeEndIdx[file])
+
+            mMA_Object.saveHTMLs(mMA_Object.giwaxs, mMA_Object.logging, mMA_Object.pl, mMA_Object.plTimePost[file], mMA_Object.plEnergyPost[file], mMA_Object.plIntensityPost[file], mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsIntensityPost[file], mMA_Object.logDataPost[file], mMA_Object.outputPath, mMA_Object.sampleName[file])
             
             print("_____________________________________________________________")
             
-        elif mMA_Object.genParams['GIWAXS'] and mMA_Object.genParams['Logging']:
+        elif mMA_Object.giwaxs and mMA_Object.logging:
             
-            print("Working on the stacked plots. This may take a minute...")
+            print("Please close all figures to continue.")
             
-            mMA_Object.plotStacked(mMA_Object.genParams, mMA_Object.sampleName[file], mMA_Object.outputPath, mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsIntensityPost[file], [], [], [], mMA_Object.logDataPost[file], mMA_Object.logTimeEndIdx[file])
-            
-            mMA_Object.saveHTMLs(mMA_Object.genParams, [], [], [], mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsIntensityPost[file], mMA_Object.logDataPost[file], mMA_Object.outputPath, mMA_Object.sampleName[file])
+            mMA_Object.plotStacked(mMA_Object.pl, mMA_Object.sampleName[file], mMA_Object.outputPath, mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsIntensityPost[file], [], [], [], mMA_Object.logDataPost[file], mMA_Object.logTimeEndIdx[file])
+
+            mMA_Object.saveHTMLs(mMA_Object.giwaxs, mMA_Object.logging, mMA_Object.pl, [], [], [], mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsIntensityPost[file], mMA_Object.logDataPost[file], mMA_Object.outputPath, mMA_Object.sampleName[file])
             
             print("_____________________________________________________________")
             
         #%%
                         
-        if mMA_Object.genParams['ImagePlots'] == 'Node-centered':  
+        if mMA_Object.igor:  
             
             # Optimizing data for plots in Igor - take out if not using Igor
             mMA_Object.giwaxsTimePost[file] = np.append(mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsTimePost[file][-1]+mMA_Object.giwaxsTimePost[file][-1]-mMA_Object.giwaxsTimePost[file][-2])
             mMA_Object.giwaxsQPost[file] = np.append(mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsQPost[file][-1]+mMA_Object.giwaxsQPost[file][-1]-mMA_Object.giwaxsQPost[file][-2])
             
-            if mMA_Object.genParams['PL']:
+            if mMA_Object.pl:
                 # Optimizing data for plots in Igor - take out if not using Igor
                 mMA_Object.plTimePost[file] = np.append(mMA_Object.plTimePost[file], mMA_Object.plTimePost[file][-1]+mMA_Object.plTimePost[file][-1]-mMA_Object.plTimePost[file][-2])
                 mMA_Object.plEnergyPost[file] = np.append(mMA_Object.plEnergyPost[file], mMA_Object.plEnergyPost[file][-1]+mMA_Object.plEnergyPost[file][-1]-mMA_Object.plEnergyPost[file][-2])
@@ -151,7 +161,7 @@ def main(folder=None):
         np.savetxt(mMA_Object.outputPath + '/' + mMA_Object.sampleName[file] + '_GIWAXS_Time.csv', mMA_Object.giwaxsTimePost[file], delimiter=",", header = mMA_Object.sampleName[file] + '_GIWAXS_Time')
         np.savetxt(mMA_Object.outputPath + '/' + mMA_Object.sampleName[file] + '_GIWAXS_Intensity.csv', mMA_Object.giwaxsIntensityPost[file], delimiter=",")
         
-        if mMA_Object.genParams['PL']:
+        if mMA_Object.pl:
             np.savetxt(mMA_Object.outputPath + '/' + mMA_Object.sampleName[file] + '_PL_Energy.csv', mMA_Object.plEnergyPost[file], delimiter=",", header = mMA_Object.sampleName[file] + '_Energy') 
             np.savetxt(mMA_Object.outputPath + '/' + mMA_Object.sampleName[file] + '_PL_Time.csv', mMA_Object.plTimePost[file], delimiter=",", header = mMA_Object.sampleName[file] + '_PLTime')
             np.savetxt(mMA_Object.outputPath + '/' + mMA_Object.sampleName[file] + '_PL_Intensity.csv', mMA_Object.plIntensityPost[file].T, delimiter=",")

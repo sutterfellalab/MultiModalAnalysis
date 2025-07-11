@@ -7,3 +7,9 @@ tk
 lmfit
 bokeh
 tqdm
+h5py
+pyFAI
+pyqt5
+pyside6
+pyqt6
+pyopencl

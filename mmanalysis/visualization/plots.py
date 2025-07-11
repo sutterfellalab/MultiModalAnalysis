@@ -142,9 +142,9 @@ def plotIndividually(axisDescription, fileName, sampleName, savePath, xData, tim
     return fig
 
     
-def plotStacked(genParams, sampleName, savePath, q, timeGIWAXS, intGIWAXS, energyPL, timePL, intPL, logData, logTimeEndIdx):
+def plotStacked(ispl, sampleName, savePath, q, timeGIWAXS, intGIWAXS, energyPL, timePL, intPL, logData, logTimeEndIdx):
     
-    if genParams['PL']:
+    if ispl:
         # define subplots
         fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(6, 9), sharex=True, gridspec_kw={'height_ratios': [2, 2, 1]})
         
@@ -232,14 +232,14 @@ def plotStacked(genParams, sampleName, savePath, q, timeGIWAXS, intGIWAXS, energ
     return fig
 
 
-def htmlPlots(genParams, time_pl, y_pl, z_pl, time_giwaxs, y_giwaxs, z_giwaxs, y_pyro, y_spin, time_log, directory, sample): 
+def htmlPlots(isgiwaxs, islogging, ispl, time_pl, y_pl, z_pl, time_giwaxs, y_giwaxs, z_giwaxs, y_pyro, y_spin, time_log, directory, sample): 
 
     # set output to static HTML file
     output_file(filename=f'{directory}/{sample}_ALS-data.html', title=f'{sample}_ALS-data')
     
     
     #%%PL-Plot
-    if genParams['PL']:
+    if ispl:
         
         p_pl = figure(
         x_range= (0, time_pl.max()),
@@ -266,7 +266,7 @@ def htmlPlots(genParams, time_pl, y_pl, z_pl, time_giwaxs, y_giwaxs, z_giwaxs, y
         
         tab1 = TabPanel(child=p_pl, title="PL")
         
-        if genParams['Logging']:
+        if islogging:
             # Setting the second y axis range name and range
             p_pl.extra_y_ranges = {"Temperature (°C)": Range1d(start=0, end=1.05 * y_pyro.max()), "Spin Speed (rpm)": Range1d(start=0, end=1.05 * y_spin.max())}
             
@@ -301,7 +301,7 @@ def htmlPlots(genParams, time_pl, y_pl, z_pl, time_giwaxs, y_giwaxs, z_giwaxs, y
         
     
     #%%GIWAXS-Plot
-    if genParams['GIWAXS']:
+    if isgiwaxs:
 
         z_giwaxs = z_giwaxs.T
         
@@ -360,7 +360,7 @@ def htmlPlots(genParams, time_pl, y_pl, z_pl, time_giwaxs, y_giwaxs, z_giwaxs, y
     
     
     #%%Logging
-    if genParams['Logging']:
+    if islogging:
 
         timeLogStart = time_log.max()
         

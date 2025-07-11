@@ -32,7 +32,7 @@ from .io import importing, pyFAICalibration
 
 class MMAnalysis(object):
 
-    def __init__(self, name=None, restart_file=None, folder=None):
+    def __init__(self, name=None, restart_file=None, folder=None, giwaxs=True, pl=True, logdata=True, igor=False):
 
         if restart_file is not None:
 
@@ -44,18 +44,29 @@ class MMAnalysis(object):
             
             self.inputDict = {}
             
-            self.genParams = settings.generalParameters()
-            self.giwaxsParams = settings.giwaxsParameters()
+            self.name = name
+            self.giwaxs = giwaxs
+            self.pl = pl
+            self.logging = logdata
+            # self.giwaxsParams = settings.giwaxsParameters()
             self.plParams = settings.plParameters()
+            self.exampleAluminaImage, self.aluminaCalibrant, self.itoCalibrant, self.defaultPONI = importing.getCalibFiles() #add logic to look for local AluminaImage 
+            self.recalibrant = 'ITO' #Needs to be included in the argparse
+            self.baseCalibration = self.askForCalib()
             
-            if self.giwaxsParams['GIWAXS-calibration'] == None:
+            #Add option to bypass this following if chain using argparse
+            if self.baseCalibration == "none":
                 
                 self.giwaxsCalibFile = self.calibrateGIWAXS()
                 
-            else:
+            elif self.baseCalibration == "default":
                 
-                self.giwaxsCalibFile = self.giwaxsParams['GIWAXS-calibration']
+                self.giwaxsCalibFile = self.defaultPONI
                 
+            elif self.baseCalibration == "local":
+                
+                self.giwaxsCalibFile = filedialog.askopenfilename(title="Select the local alumina calibration", filetypes=[("PONI files", "*.poni")])
+                print(self.giwaxsCalibFile)
 
             h5_files = filedialog.askopenfilenames(title="Select the spin-coater run files", filetypes=[("H5 files", "*.h5")])
             self.folder = Path(h5_files[0]).parent
@@ -68,7 +79,7 @@ class MMAnalysis(object):
             os.makedirs(str(self.folder) + '/output/fits', exist_ok=True)
             self.outputPath = str(self.folder) + '/output'
             
-            self.loggingBatch, self.qBatch, self.giwaxsTimeBatch, self.giwaxsIntensity2DBatch, self.plTimeBatch, self.plEnergyBatch, self.plIntensityBatch, self.plIntensityLogBatch = self.getMMAData(self.giwaxsCalibFile, self.outputPath, h5_files)           
+            self.loggingBatch, self.qBatch, self.giwaxsTimeBatch, self.giwaxsIntensity2DBatch, self.plTimeBatch, self.plEnergyBatch, self.plIntensityBatch, self.plIntensityLogBatch = self.getMMAData(self.logging, self.giwaxs, self.pl, self.giwaxsCalibFile, self.outputPath, h5_files)           
             
             
             # Initilize batch-parameters to archive in class
@@ -90,17 +101,28 @@ class MMAnalysis(object):
             self.plEnergyPost = []
             self.plIntensityPost = []
             self.plIntensityLogPost = []
-
+            
+    def askForCalib(self):
+        
+        baseCalib = mma_gui.baseCalibPopUp()
+            
+        return baseCalib
 
     def calibrateGIWAXS(self):
         
-        calibrationFile = pyFAICalibration.giwaxsCalibration(self.giwaxsParams)
+        calibrationFile = pyFAICalibration.giwaxsCalibration(self.exampleAluminaImage, self.aluminaCalibrant, self.defaultPONI)
         
         return calibrationFile
     
-    def getMMAData(self, giwaxsCalibFile, outputPath, h5_files):
+    def getMMAData(self, islogging, isgiwaxs, ispl, giwaxsCalibFile, outputPath, h5_files):
         
-        logging, q, giwaxsTime, giwaxsData, plTime, energy, plData, plDataLog = importing.getData(self.giwaxsParams, self.plParams, self.sampleName, giwaxsCalibFile, outputPath, h5_files)
+        if self.recalibrant == 'ITO':
+            calibrant = self.itoCalibrant #add some option for the user to select if ito or other substrate
+        #option to add more calibrants via elif here
+        else:
+            print("Re-calibrant not found, using default calibration. Please update mMA_settings.py")
+            
+        logging, q, giwaxsTime, giwaxsData, plTime, energy, plData, plDataLog = importing.getData(self.plParams, self.sampleName, islogging, isgiwaxs, ispl, calibrant, giwaxsCalibFile, outputPath, h5_files)
         
         return logging, q, giwaxsTime, giwaxsData, plTime, energy, plData, plDataLog
 
@@ -120,7 +142,12 @@ class MMAnalysis(object):
             logDataTemp = logDataTemp[self.logTimeStartIdx[file]-1:self.logTimeEndIdx[file]+2,:] #need to take care of case where start is 0
             logDataTemp[:,0] = logDataTemp[:,0] - logDataTemp[0,0]
 
-            self.logDataPost.append(pd.DataFrame(logDataTemp, columns = ["Time", "Pilatus", "QEPro", "Pyrometer", "Spin Motor", "Dispense X", "Gas Quenching"])) 
+            if self.pl and self.giwaxs:
+                self.logDataPost.append(pd.DataFrame(logDataTemp, columns = ["Time", "Pilatus", "QEPro", "Pyrometer", "Spin Motor", "Dispense X", "Gas Quenching"]))
+            elif self.giwaxs:
+                self.logDataPost.append(pd.DataFrame(logDataTemp, columns = ["Time", "Pilatus", "Pyrometer", "Spin Motor", "Dispense X", "Gas Quenching"]))
+            elif self.pl:
+                self.logDataPost.append(pd.DataFrame(logDataTemp, columns = ["Time", "QEPro", "Pyrometer", "Spin Motor", "Dispense X", "Gas Quenching"]))
             
         else:
                 
@@ -339,16 +366,16 @@ class MMAnalysis(object):
         return df
 
     
-    def plotStacked(self, genParams, sampleName, savePath, q, timeGIWAXS, intGIWAXS, energyPL, timePL, intPL, logData, logTimeEndIdx):
+    def plotStacked(self, ispl, sampleName, savePath, q, timeGIWAXS, intGIWAXS, energyPL, timePL, intPL, logData, logTimeEndIdx):
             
-        plots.plotStacked(genParams, sampleName, savePath, q, timeGIWAXS, intGIWAXS, energyPL, timePL, intPL, logData, logTimeEndIdx) 
+        plots.plotStacked(ispl, sampleName, savePath, q, timeGIWAXS, intGIWAXS, energyPL, timePL, intPL, logData, logTimeEndIdx) 
 
         return
 
        
-    def saveHTMLs(self, genParams, timePL, energyPL, intPL, timeGIWAXS, q, intGIWAXS, logData, savePath, sampleName):
+    def saveHTMLs(self, isgiwaxs, islogging, ispl, timePL, energyPL, intPL, timeGIWAXS, q, intGIWAXS, logData, savePath, sampleName):
         
-        plots.htmlPlots(genParams, timePL, energyPL, intPL, timeGIWAXS, q, intGIWAXS, logData.iloc[:,4], logData.iloc[:,5], logData.iloc[:,0], savePath, sampleName)
+        plots.htmlPlots(isgiwaxs, islogging, ispl, timePL, energyPL, intPL, timeGIWAXS, q, intGIWAXS, logData.iloc[:,4], logData.iloc[:,5], logData.iloc[:,0], savePath, sampleName)
         
         return
 

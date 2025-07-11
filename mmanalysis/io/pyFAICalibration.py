@@ -5,6 +5,7 @@ Created on Tue Jan  7 17:01:58 2025
 @author: timko
 """
 
+import numpy as np
 from tkinter import filedialog
 import subprocess
 import fabio
@@ -14,30 +15,35 @@ from pyFAI.geometry import Geometry
 from pyFAI.goniometer import SingleGeometry
 from pyFAI.gui import jupyter
 
+# import matplotlib.pyplot as plt
 
+def createGIWAXSMask(image, threshold = 1e9):
+    
+    mask = np.ones_like(image)  # Create a mask with the same shape as your data
+    mask[image > threshold] = 0
+    image = mask * image
+    # plt.imshow(image)
+    
+    return image
 
-
-def giwaxsCalibration(params):
+def giwaxsCalibration(calibImage, calibData, defaultPONI):
     
     
     # Path to the default calibration file
-    default_calib_file_path = params['default-poni'] 
-    calibrant_image_path = params['calibration-image'] 
-    calibrant = params['calibrant']
-    energy = params['energy']
+    energy = '10' #At 12.3.2, we typically use 10 keV. Should make this an input at some point
     
     calibCommand = [
     'pyFAI-calib2',
-    '--poni', default_calib_file_path,
-    '--c', calibrant,
+    '--poni', defaultPONI,
+    '--c', calibData,
     '--e', energy,
-    calibrant_image_path
+    calibImage
     ]
     
     # Launch the pyFAI calibration GUI using command line
     print("Launching pyFAI calibration GUI. This will take a few seconds...")
     subprocess.run(calibCommand, capture_output=True, text=True)
-    
+
     # Prompt the user to select the calibration file
     calib_file_path = filedialog.askopenfilename(title="Select the calibration file", filetypes=[("Calibration files", "*.poni")])
     if not calib_file_path:
@@ -57,7 +63,7 @@ def refine_calibration(sampleName, image, initial_poni, calibrant_file, refined_
         calibrant_file (str): Path to the custom calibrant file.
         refined_poni (str): Path to save the refined .poni file.
     """
-
+    
     # Load the custom calibrant
     calibrant = Calibrant(filename=calibrant_file)
 
@@ -65,9 +71,10 @@ def refine_calibration(sampleName, image, initial_poni, calibrant_file, refined_
     initial = Geometry()
     initial.load(initial_poni)
     pilatus = pyFAI.detector_factory("Pilatus1M")
+    maskedImage = createGIWAXSMask(image)
   
     # (Optional) Add custom refinement logic if necessary.
-    sg = SingleGeometry("Recalibration of Sample " + sampleName, image, calibrant=calibrant, detector=pilatus, geometry=initial)
+    sg = SingleGeometry("Recalibration of Sample " + sampleName, maskedImage, calibrant=calibrant, detector=pilatus, geometry=initial)
     sg.extract_cp(max_rings=5)
     sg.geometry_refinement.refine2(fix=["rot1", "rot2", "rot3", "wavelength"])
     sg.get_ai()
