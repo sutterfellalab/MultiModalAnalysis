@@ -14,6 +14,7 @@ import pandas as pd
 import glob
 import os
 import ntpath
+from pathlib import Path
 
 # save
 import dill
@@ -25,13 +26,13 @@ from tkinter import filedialog, simpledialog
 from .visualization import plots
 from .core import settings, fits
 from .gui import mma_gui
-from .io.importing import convertGIWAXS_data, getPLData, getLogData
+from .io import importing, pyFAICalibration
 
 #%%
 
 class MMAnalysis(object):
 
-    def __init__(self, name=None, restart_file=None, folder=None):
+    def __init__(self, name=None, restart_file=None, folder=None, giwaxs=True, pl=True, logdata=True, igor=False):
 
         if restart_file is not None:
 
@@ -43,116 +44,174 @@ class MMAnalysis(object):
             
             self.inputDict = {}
             
-            self.genParams = settings.generalParameters()
+            self.name = name
+            self.giwaxs = giwaxs
+            self.pl = pl
+            self.logging = logdata
+            # self.giwaxsParams = settings.giwaxsParameters()
+            self.plParams = settings.plParameters()
+            self.exampleAluminaImage, self.aluminaCalibrant, self.itoCalibrant, self.defaultPONI = importing.getCalibFiles() #add logic to look for local AluminaImage 
+            self.recalibrant = 'ITO' #Needs to be included in the argparse
+            self.baseCalibration = self.askForCalib()
             
-            if folder is None:
-                folder = filedialog.askdirectory()
+            #Add option to bypass this following if chain using argparse
+            if self.baseCalibration == "none":
                 
-            self.sampleName = ntpath.basename(folder)
-            
-            os.makedirs(folder + '/output', exist_ok=True)
-            os.makedirs(folder + '/output/fits', exist_ok=True)
-            
-            self.outputPath = folder + '/output'
+                self.giwaxsCalibFile = self.calibrateGIWAXS()
+                
+            elif self.baseCalibration == "default":
+                
+                self.giwaxsCalibFile = self.defaultPONI
+                
+            elif self.baseCalibration == "local":
+                
+                self.giwaxsCalibFile = filedialog.askopenfilename(title="Select the local alumina calibration", filetypes=[("PONI files", "*.poni")])
+                print(self.giwaxsCalibFile)
 
-            if self.genParams['GIWAXS']:
-                
-                GIWAXS_file = glob.glob(folder + '/GIWAXS' + "/*.dat")[0]
-                GIWAXS_data = pd.read_csv(GIWAXS_file, sep='\s+', header=0, names=np.array(
-                    ['image_num', 'twotheta', 'twotheta_cuka', 'dspacing', 'qvalue', 'intensity', 'frame_number', 'izero',
-                      'date', 'time', 'AM/PM']))
+            h5_files = filedialog.askopenfilenames(title="Select the spin-coater run files", filetypes=[("H5 files", "*.h5")])
+            self.folder = Path(h5_files[0]).parent
+            self.numFiles = len(h5_files)
+            
+            self.sampleName = []
+            for i in range(self.numFiles):
+                self.sampleName.append(str(Path(h5_files[i]).stem))
+            os.makedirs(str(self.folder) + '/output', exist_ok=True)
+            os.makedirs(str(self.folder) + '/output/fits', exist_ok=True)
+            self.outputPath = str(self.folder) + '/output'
+            
+            self.loggingBatch, self.qBatch, self.giwaxsTimeBatch, self.giwaxsIntensity2DBatch, self.plTimeBatch, self.plEnergyBatch, self.plIntensityBatch, self.plIntensityLogBatch = self.getMMAData(self.logging, self.giwaxs, self.pl, self.giwaxsCalibFile, self.outputPath, h5_files)           
+            
+            
+            # Initilize batch-parameters to archive in class
+            self.logTimeStartIdx = []
+            self.logTimeEndIdx = []
+            self.logDataPost = []
+            self.giwaxsTimeStartIdx = []
+            self.giwaxsTimeEndIdx = []
+            self.giwaxsQStartIdx  = []
+            self.giwaxsQEndIdx = []
+            self.giwaxsTimePost = []
+            self.giwaxsQPost = []
+            self.giwaxsIntensityPost = []
+            self.plTimeStartIdx = []
+            self.plTimeEndIdx = []
+            self.plEStartIdx = []
+            self.plEEndIdx = []
+            self.plTimePost = []
+            self.plEnergyPost = []
+            self.plIntensityPost = []
+            self.plIntensityLogPost = []
+            
+    def askForCalib(self):
         
-                self.qRaw, self.giwaxsTimeRaw, self.giwaxsIntensityRaw = self.convertGIWAXS_data(GIWAXS_data, self.sampleName, self.outputPath)
-                
-            if self.genParams['Logging']:
-                if self.genParams['TempOld']:
-                    logFile = glob.glob(folder + '/Logfile' + "/*.csv")[0]
-                else:
-                    logFile = glob.glob(folder + '/Logfile' + "/*.txt")[0]
-                    
-                self.logDataRaw = self.getLog_data(logFile)
+        baseCalib = mma_gui.baseCalibPopUp()
+            
+        return baseCalib
 
-            if self.genParams['PL']:
-
-                plFiles = sorted(glob.glob(folder + '/PL' + "/*.txt"))         
-                self.plTimeRaw, self.plWavelengthRaw, self.plEnergyRaw, self.plIntensityRaw, self.plIntensityERaw, self.plIntensityERawLog = self.getPL_data(plFiles, folder = folder + '/PL/')
-               
-            if not self.genParams['GIWAXS'] and not self.genParams['Logging'] and not self.genParams['PL']:
-                print('Please select at least one data type in the settings file.')
-               
-        return 
-
-    def convertGIWAXS_data(self, GIWAXS_data, sample_name, save_path):
-
-        q, frame_time, full_intensity = convertGIWAXS_data(GIWAXS_data, sample_name, save_path)
-
-        return (q, frame_time, full_intensity)
+    def calibrateGIWAXS(self):
+        
+        calibrationFile = pyFAICalibration.giwaxsCalibration(self.exampleAluminaImage, self.aluminaCalibrant, self.defaultPONI)
+        
+        return calibrationFile
     
-    def getPL_data(self, PL_files, folder):
+    def getMMAData(self, islogging, isgiwaxs, ispl, giwaxsCalibFile, outputPath, h5_files):
         
-        self.plParams = settings.plParameters()
-        
-        if self.genParams['Logging']:
-            df_x, df_y, df_y_E, df, df_E, df_Elog  = getPLData(self.plParams, PL_files, folder, self.logDataRaw['Time'].to_numpy())
+        if self.recalibrant == 'ITO':
+            calibrant = self.itoCalibrant #add some option for the user to select if ito or other substrate
+        #option to add more calibrants via elif here
         else:
-            df_x, df_y, df_y_E, df, df_E, df_Elog  = getPLData(self.plParams, PL_files, folder, [])
+            print("Re-calibrant not found, using default calibration. Please update mMA_settings.py")
             
-        return df_x, df_y, df_y_E, df, df_E, df_Elog 
-    
-    def getLog_data(self, logFile):
+        logging, q, giwaxsTime, giwaxsData, plTime, energy, plData, plDataLog = importing.getData(self.plParams, self.sampleName, islogging, isgiwaxs, ispl, calibrant, giwaxsCalibFile, outputPath, h5_files)
         
-        logDataSelect = getLogData(self.genParams, logFile)
+        return logging, q, giwaxsTime, giwaxsData, plTime, energy, plData, plDataLog
+
+
+    def plotLog(self, logCut, sampleName, savePath, logData, file):
         
-        return logDataSelect
-    
-    def plotGIWAXS(self, GIWAXS_cut, sample_name, save_path, q, frame_time, intensity):
+        if logCut is True:
+            
+            plots.plotLog(sampleName, savePath, logData)
+            
+            mma_gui.inputGUI(self.inputDict, "Times_Logging", 2, "Select New Times", ['Please set the start time (in s):', 'Please set the end time (in s):'], "Automated guess for the starting time is " + str(self.loggingBatch[file].iloc[self.suggestedLogTimeIdx-1,0]) + ' s')
+            
+            self.logTimeStartIdx.append(next(tStart for tStart, valStart in enumerate(logData.iloc[:,0]) if valStart > float(self.inputDict["Times_Logging"][0])))
+            self.logTimeEndIdx.append(next(tStart for tStart, valStart in enumerate(logData.iloc[:,0]) if valStart > float(self.inputDict["Times_Logging"][1])))
+            
+            logDataTemp = logData.to_numpy()
+            logDataTemp = logDataTemp[self.logTimeStartIdx[file]-1:self.logTimeEndIdx[file]+2,:] #need to take care of case where start is 0
+            logDataTemp[:,0] = logDataTemp[:,0] - logDataTemp[0,0]
+
+            if self.pl and self.giwaxs:
+                self.logDataPost.append(pd.DataFrame(logDataTemp, columns = ["Time", "Pilatus", "QEPro", "Pyrometer", "Spin Motor", "Dispense X", "Gas Quenching"]))
+            elif self.giwaxs:
+                self.logDataPost.append(pd.DataFrame(logDataTemp, columns = ["Time", "Pilatus", "Pyrometer", "Spin Motor", "Dispense X", "Gas Quenching"]))
+            elif self.pl:
+                self.logDataPost.append(pd.DataFrame(logDataTemp, columns = ["Time", "QEPro", "Pyrometer", "Spin Motor", "Dispense X", "Gas Quenching"]))
+            
+        else:
+                
+            plots.plotLog(sampleName, savePath, logData)
+
+        return
+
+
+    def plotGIWAXS(self, GIWAXS_cut, sample_name, save_path, q, frame_time, intensity, file):
 
         if GIWAXS_cut is True:
             
-            #self.contourGIWAXSRaw = plots.plotGIWAXS(sample_name, save_path, q, frame_time, intensity)
             plots.plotGIWAXS(sample_name, save_path, q, frame_time, intensity)
             
-            if self.genParams['LabviewPL']:
-            
-                mma_gui.inputGUI(self.inputDict, "Input_GIWAXS", 4, "Select Ranges", ['Please set the start time (in s):', 'Please set the end time (in s):', 'Please set the lower q (in A-1): ',
-                                                               'Please set the upper q (in A-1): '], "Automated guess: " 
-                          + str(round(self.suggestedGIWAXSTime,3)) + ' s and ' + str(round(float(self.inputDict["Times_Logging"][1])-float(self.inputDict["Times_Logging"][0]) + float(self.suggestedGIWAXSTime),3)) + ' s')
-                
-            else:
-                
-                mma_gui.inputGUI(self.inputDict, "Input_GIWAXS", 4, "Select Ranges", ['Please set the start time (in s):', 'Please set the end time (in s):', 'Please set the lower q (in A-1): ',
-                                                               'Please set the upper q (in A-1): '], "Automated guess for the starting time is " 
-                          + str(round(self.suggestedGIWAXSTime,3)) + ' s')
-                      
+
+            mma_gui.inputGUI(self.inputDict, "Input_GIWAXS", 2, "Select Ranges", ['Please set the lower q (in A-1): ', 'Please set the upper q (in A-1): '], "")
+
+            # Need to make the self.variables batches for multiple samples in one run
+
             # Selecting the start time
-            self.giwaxsTimeStartIdx = next(eStart for eStart, valStart in enumerate(frame_time) if valStart > float(self.inputDict["Input_GIWAXS"][0]))
+            self.giwaxsTimeStartIdx.append(next(eStart for eStart, valStart in enumerate(frame_time) if valStart >  float(self.inputDict["Times_Logging"][0]))-1)
             # Selecting the end time
-            self.giwaxsTimeEndIdx = next(eStart for eStart, valStart in enumerate(frame_time) if valStart > float(self.inputDict["Input_GIWAXS"][1]))-1
+            self.giwaxsTimeEndIdx.append(next(eStart for eStart, valStart in enumerate(frame_time) if valStart > float(self.inputDict["Times_Logging"][1]))+1)
             
             # Selecting the start q
-            self.giwaxsQStartIdx = next(qStart for qStart, valStart in enumerate(q) if valStart > float(self.inputDict["Input_GIWAXS"][2]))
-            
+            self.giwaxsQStartIdx.append(next(qStart for qStart, valStart in enumerate(q) if valStart > float(self.inputDict["Input_GIWAXS"][0])))            
             # Selecting the end q
-            self.giwaxsQEndIdx = next(qStart for qStart, valStart in enumerate(q) if valStart > float(self.inputDict["Input_GIWAXS"][3]))
+            self.giwaxsQEndIdx.append(next(qStart for qStart, valStart in enumerate(q) if valStart > float(self.inputDict["Input_GIWAXS"][1])))
             
-            self.giwaxsTimePost = frame_time[self.giwaxsTimeStartIdx-1:self.giwaxsTimeEndIdx]
-            self.giwaxsTimePost = self.giwaxsTimePost - self.giwaxsTimePost[0]
+            giwaxsTimeTemp = frame_time[self.giwaxsTimeStartIdx[file]:self.giwaxsTimeEndIdx[file]]
+            self.giwaxsTimePost.append(giwaxsTimeTemp - giwaxsTimeTemp[0])
             
-            self.giwaxsQPost = q[self.giwaxsQStartIdx-1:self.giwaxsQEndIdx]
-            self.giwaxsIntensityPost = intensity[self.giwaxsTimeStartIdx-1:self.giwaxsTimeEndIdx, self.giwaxsQStartIdx-1:self.giwaxsQEndIdx]
+            self.giwaxsQPost.append(q[self.giwaxsQStartIdx[file]:self.giwaxsQEndIdx[file]])
+            self.giwaxsIntensityPost.append(intensity[self.giwaxsTimeStartIdx[file]:self.giwaxsTimeEndIdx[file], self.giwaxsQStartIdx[file]:self.giwaxsQEndIdx[file]])
             
         else:
-            
-            #self.contourGIWAXS = plots.plotGIWAXS(sample_name, save_path, q, frame_time, intensity)
+
             plots.plotGIWAXS(sample_name, save_path, q, frame_time, intensity)
 
         return
     
-    def plotPL(self, plCut, sampleName, savePath, energy, time, intensity, wavelength, intensityWL, intensityLog):
+    
+    def giwaxsFits(self, sampleName, savePath, q, timeGIWAXS, intGIWAXS):
+        
+        mma_gui.inputGUI(self.inputDict, "GIWAXS-Fits", 3, "Select Ranges", ['Which peak do you want to fit? ', 'Please set the lower q threshold (in A-1): ',
+                                                           'Please set the upper q threshold (in A-1): '], " ")
+        
+        #peakName = str(input('Which peak do you want to fit? ' ))
+        #lowQ = float(input('Please set the lower q threshold (in A-1): '))
+        lowQIdx = next(qStart for qStart, valStart in enumerate(q) if valStart > float(self.inputDict["GIWAXS-Fits"][1]))-1
+        #highQ = float(input('Please set the upper q threshold (in A-1): '))
+        highQIdx = next(qEnd for qEnd, valEnd in enumerate(q) if valEnd > float(self.inputDict["GIWAXS-Fits"][2]))-1
+        
+        show_every = int(len(timeGIWAXS)/5)                # int n, shows every n'th frame with fit
+        
+        fits.fit_several_frames(q, timeGIWAXS, intGIWAXS, show_every, lowQIdx, highQIdx, sampleName, savePath, self.inputDict["GIWAXS-Fits"][0])
+        
+        return
+    
+    
+    def plotPL(self, plCut, sampleName, savePath, energy, time, intensity, intensityLog, file):
         
         if plCut:
 
-            #self.contourPLRaw = plots.plotPL(sampleName, savePath, energy, time, intensity)
             plots.plotPL(self.plParams, sampleName, savePath, energy, time, intensity, intensityLog)
             
             # Background subtraction
@@ -174,82 +233,81 @@ class MMAnalysis(object):
                     coefs = np.polyfit(xVals, yVals, self.plParams['bkgCorrPoly'])  
                     poly1d_fn = np.poly1d(coefs)
                     intensity[:, i] = intensity[:, i] - poly1d_fn(energy[:])
-            
-            if self.plParams['Labview']:
-            
-                mma_gui.inputGUI(self.inputDict, "Input_PL", 4, "Select Ranges", ['Please set the start time (in s):', 'Please set the end time (in s):', 'Please set the lower energy threshold (in eV): ',
-                                                               'Please set the upper energy threshold (in eV): '], "From Logging: " + str(self.inputDict["Times_Logging"][0]) + ' s' + " and " + str(float(self.inputDict["Times_Logging"][1])) + ' s')
-            else:
-                
-                mma_gui.inputGUI(self.inputDict, "Input_PL", 4, "Select Ranges", ['Please set the start time (in s):', 'Please set the end time (in s):', 'Please set the lower energy threshold (in eV): ',
+                      
+            mma_gui.inputGUI(self.inputDict, "Input_PL", 2, "Select Ranges", ['Please set the lower energy threshold (in eV): ',
                                                                'Please set the upper energy threshold (in eV): '], '')
             
-            
-            if float(self.inputDict["Input_PL"][0]) < time[0]:
-                self.inputDict["Input_PL"][0] = time[0]
-                
-            if float(self.inputDict["Input_PL"][1]) > time[-2]:
-                 self.inputDict["Input_PL"][1] = time[-2]
                  
-            if float(self.inputDict["Input_PL"][2]) < energy[0]:
-                self.inputDict["Input_PL"][2] = energy[0]
+            if float(self.inputDict["Input_PL"][0]) < energy[0]:
+                self.inputDict["Input_PL"][0] = energy[0]
                
-            if float(self.inputDict["Input_PL"][3]) > energy[-2]:
-                 self.inputDict["Input_PL"][3] = energy[-2]
+            if float(self.inputDict["Input_PL"][1]) > energy[-2]:
+                 self.inputDict["Input_PL"][1] = energy[-2]
             
             # Selecting the start time
-            self.plTimeStartIdx = next(eStart for eStart, valStart in enumerate(time) if valStart > float(self.inputDict["Input_PL"][0]))
+            self.plTimeStartIdx.append(next(eStart for eStart, valStart in enumerate(time) if valStart > float(self.inputDict["Times_Logging"][0]))-1)
             # Selecting the end time
-            self.plTimeEndIdx = next(eStart for eStart, valStart in enumerate(time) if valStart > float(self.inputDict["Input_PL"][1]))
+            self.plTimeEndIdx.append(next(eStart for eStart, valStart in enumerate(time) if valStart > float(self.inputDict["Times_Logging"][1]))+1)
             
-            # Selecting the start enegy
-            self.plEStartIdx = next(eStart for eStart, valStart in enumerate(energy) if valStart > float(self.inputDict["Input_PL"][2]))
+            # Selecting the start energy
+            self.plEStartIdx.append(next(eStart for eStart, valStart in enumerate(energy) if valStart > float(self.inputDict["Input_PL"][0])))
             # Selecting the end energy
-            self.plEEndIdx = next(eStart for eStart, valStart in enumerate(energy) if valStart > float(self.inputDict["Input_PL"][3]))
+            self.plEEndIdx.append(next(eStart for eStart, valStart in enumerate(energy) if valStart > float(self.inputDict["Input_PL"][1])))
             
-            self.plTimePost = time[self.plTimeStartIdx-1:self.plTimeEndIdx+1]
-            self.plTimePost = self.plTimePost - self.plTimePost[0]
-            self.plEnergyPost = energy[self.plEStartIdx-1:self.plEEndIdx+1]
-            self.plIntensityPost = intensity[self.plEStartIdx-1:self.plEEndIdx+1, self.plTimeStartIdx-1:self.plTimeEndIdx+1]
-            self.plIntensityLogPost = intensityLog[self.plEStartIdx-1:self.plEEndIdx+1, self.plTimeStartIdx-1:self.plTimeEndIdx+1]
+            plTimeTemp = time[self.plTimeStartIdx[file]:self.plTimeEndIdx[file]]
+            self.plTimePost.append(plTimeTemp - plTimeTemp[0])
+            self.plEnergyPost.append(energy[self.plEStartIdx[file]:self.plEEndIdx[file]])
+            self.plIntensityPost.append(intensity[self.plEStartIdx[file]:self.plEEndIdx[file], self.plTimeStartIdx[file]:self.plTimeEndIdx[file]])
+            self.plIntensityLogPost.append(intensityLog[self.plEStartIdx[file]:self.plEEndIdx[file], self.plTimeStartIdx[file]:self.plTimeEndIdx[file]])
             
         else:
                 
-            #self.contourPL = plots.plotPL(sampleName, savePath, energy, time, intensity)
             plots.plotPL(self.plParams, sampleName, savePath, energy, time, intensity, intensityLog)
 
         return 
     
-    def plotLog(self, logCut, new, sampleName, savePath, logData):
+    
+    def plFits(self, energyPL, timePL, intPL, sampleName, savePath):
         
-        if logCut is True:
-            
-            plots.plotLog(sampleName, savePath, logData, new)
-            
-            mma_gui.inputGUI(self.inputDict, "Times_Logging", 2, "Select New Times", ['Please set the start time (in s):', 'Please set the end time (in s):'], "Automated guess for the starting time is " + str(self.logDataRaw.Time[self.suggestedLogTimeIdx-1]) + ' s')
-            
-            self.logTimeStartIdx = next(tStart for tStart, valStart in enumerate(logData.Time) if valStart > float(self.inputDict["Times_Logging"][0]))
-            self.logTimeEndIdx = next(tStart for tStart, valStart in enumerate(logData.Time) if valStart > float(self.inputDict["Times_Logging"][1]))
-            
-            logDataTemp = logData.to_numpy()
-            logDataTemp = logDataTemp[self.logTimeStartIdx-1:self.logTimeEndIdx+1,:] #need to take care of case where start is 0
-            logDataTemp[:,0] = logDataTemp[:,0] - logDataTemp[0,0]
+        numGauss = float(simpledialog.askfloat("Fit PL", 'How many Gaussians do you want to use? '))
+        # Fit-parameters: Set the lower and upper limits as well as the estimated position of each peak (in nm).
+        # From left to right, update as many integers as needed but keep the length of arrays at 5; extra values are ignored.
+        peakLowerTH = [0.0]*int(numGauss)
+        peakUpperTH = [0.0]*int(numGauss)     
+        estPeakWidth = [0.0] *int(numGauss)
+        minPeakWidth = [0.0] *int(numGauss)
+        maxPeakWidth = [0.0] *int(numGauss)
+        
+        mma_gui.combinedGUI(self.inputDict, "PLFits_CenterGuesses","PLFits_CenterFixed?","PLFits_Propagate?", int(numGauss), "PL Fits", 
+                             int(numGauss)*['Initial guess for Peak position (in eV): '], " ", int(numGauss)*["Fixed?"], int(numGauss)*["Propagate?"])
 
-            self.logDataPost = pd.DataFrame(logDataTemp, columns = ['Time','Pyrometer','Spin_Motor', 'Dispense X'])
-            
-        else:
+        for i in range(0, int(numGauss)):
+        
+            if float(self.inputDict["PLFits_CenterFixed?"][i]): 
+                peakLowerTH[i] = float(self.inputDict["PLFits_CenterGuesses"][i]) - 0.005
+                peakUpperTH[i] = float(self.inputDict["PLFits_CenterGuesses"][i]) + 0.005
+                estPeakWidth[i] = (0.1/1.665)**2 
+                minPeakWidth[i] = (0.0/1.665)**2
+                maxPeakWidth[i] = (0.5/1.665)**2
+            else:
+                peakLowerTH[i] = float(self.inputDict["PLFits_CenterGuesses"][i]) - 0.2
+                peakUpperTH[i] = float(self.inputDict["PLFits_CenterGuesses"][i]) + 0.2
+                estPeakWidth[i] = (0.1/1.665)**2
+                minPeakWidth[i] = (0/1.665)**2
+                maxPeakWidth[i] = (1/1.665)**2
                 
-            #self.lineLog = plots.plotLog(sampleName, savePath, logData)
-            plots.plotLog(sampleName, savePath, logData, new)
-
+            if peakLowerTH[i] < energyPL[0]:
+                peakLowerTH[i] = energyPL[0]
+                
+            if peakUpperTH[i] > energyPL[-1]:
+                peakUpperTH[i] = energyPL[-1]
+                
+        show_every = int(len(timePL)/10)     # int n, shows every n'th frame with fit
+                
+        fits.plFitting(self.plParams, energyPL, timePL, intPL, show_every, numGauss, peakLowerTH, self.inputDict, peakUpperTH, estPeakWidth, minPeakWidth, maxPeakWidth, sampleName, savePath)
+        
         return
     
-    def plotStacked(self, genParams, sampleName, savePath, q, timeGIWAXS, intGIWAXS, energyPL, timePL, intPL, logData, logTimeEndIdx):
-            
-        #self.stackedPlot = plots.plotStacked(sampleName, savePath, q, timeGIWAXS, intGIWAXS, energyPL, timePL, intPL, logData, logTimeEndIdx)    
-        plots.plotStacked(genParams, sampleName, savePath, q, timeGIWAXS, intGIWAXS, energyPL, timePL, intPL, logData, logTimeEndIdx) 
-
-        return
     
     def plotIndividually(self, measType, types, axisDescription, fileName, sampleName, savePath, xData, timeData, yData):
         
@@ -306,85 +364,27 @@ class MMAnalysis(object):
         plots.plotIndividually(axisDescription, fileName, sampleName, savePath, xData, idxToPlot, intensityToPlot, timeData)
         
         return df
-    
-    def giwaxsFits(self, sampleName, savePath, q, timeGIWAXS, intGIWAXS):
-        
-        mma_gui.inputGUI(self.inputDict, "GIWAXS-Fits", 3, "Select Ranges", ['Which peak do you want to fit? ', 'Please set the lower q threshold (in A-1): ',
-                                                           'Please set the upper q threshold (in A-1): '], " ")
-        
-        #peakName = str(input('Which peak do you want to fit? ' ))
-        #lowQ = float(input('Please set the lower q threshold (in A-1): '))
-        lowQIdx = next(qStart for qStart, valStart in enumerate(q) if valStart > float(self.inputDict["GIWAXS-Fits"][1]))-1
-        #highQ = float(input('Please set the upper q threshold (in A-1): '))
-        highQIdx = next(qEnd for qEnd, valEnd in enumerate(q) if valEnd > float(self.inputDict["GIWAXS-Fits"][2]))-1
-        
-        show_every = int(len(timeGIWAXS)/5)                # int n, shows every n'th frame with fit
-        
-        fits.fit_several_frames(q, timeGIWAXS, intGIWAXS, show_every, lowQIdx, highQIdx, sampleName, savePath, self.inputDict["GIWAXS-Fits"][0])
-        
-        return
-       
-    def plFits(self, energyPL, timePL, intPL, sampleName, savePath):
-        
-        numGauss = float(simpledialog.askfloat("Fit PL", 'How many Gaussians do you want to use? '))
-        # Fit-parameters: Set the lower and upper limits as well as the estimated position of each peak (in nm).
-        # From left to right, update as many integers as needed but keep the length of arrays at 5; extra values are ignored.
-        peakLowerTH = [0.0]*int(numGauss)
-        peakUpperTH = [0.0]*int(numGauss)     
-        estPeakWidth = [0.0] *int(numGauss)
-        minPeakWidth = [0.0] *int(numGauss)
-        maxPeakWidth = [0.0] *int(numGauss)
-        
-        mma_gui.combinedGUI(self.inputDict, "PLFits_CenterGuesses","PLFits_CenterFixed?","PLFits_Propagate?", int(numGauss), "PL Fits", 
-                             int(numGauss)*['Initial guess for Peak position (in eV): '], " ", int(numGauss)*["Fixed?"], int(numGauss)*["Propagate?"])
 
-        for i in range(0, int(numGauss)):
-        
-            if float(self.inputDict["PLFits_CenterFixed?"][i]): 
-                peakLowerTH[i] = float(self.inputDict["PLFits_CenterGuesses"][i]) - 0.005
-                peakUpperTH[i] = float(self.inputDict["PLFits_CenterGuesses"][i]) + 0.005
-                estPeakWidth[i] = (0.1/1.665)**2 
-                minPeakWidth[i] = (0.0/1.665)**2
-                maxPeakWidth[i] = (0.5/1.665)**2
-            else:
-                peakLowerTH[i] = float(self.inputDict["PLFits_CenterGuesses"][i]) - 0.2
-                peakUpperTH[i] = float(self.inputDict["PLFits_CenterGuesses"][i]) + 0.2
-                estPeakWidth[i] = (0.1/1.665)**2
-                minPeakWidth[i] = (0/1.665)**2
-                maxPeakWidth[i] = (1/1.665)**2
-                
-            if peakLowerTH[i] < energyPL[0]:
-                peakLowerTH[i] = energyPL[0]
-                
-            if peakUpperTH[i] > energyPL[-1]:
-                peakUpperTH[i] = energyPL[-1]
-                
-        show_every = int(len(timePL)/10)     # int n, shows every n'th frame with fit
-                
-        fits.plFitting(self.plParams, energyPL, timePL, intPL, show_every, numGauss, peakLowerTH, self.inputDict, peakUpperTH, estPeakWidth, minPeakWidth, maxPeakWidth, sampleName, savePath)
-        
-        return
-        
-       
-    def saveHTMLs(self, genParams, timePL, energyPL, intPL, timeGIWAXS, q, intGIWAXS, logData, savePath, sampleName):
-        
-        if genParams['TempOld']:
+    
+    def plotStacked(self, ispl, sampleName, savePath, q, timeGIWAXS, intGIWAXS, energyPL, timePL, intPL, logData, logTimeEndIdx):
             
-            plots.htmlPlots(genParams, timePL, energyPL, intPL, timeGIWAXS, q,
-                            intGIWAXS, logData.Pyrometer, [], logData.Time, savePath, sampleName)
+        plots.plotStacked(ispl, sampleName, savePath, q, timeGIWAXS, intGIWAXS, energyPL, timePL, intPL, logData, logTimeEndIdx) 
+
+        return
+
+       
+    def saveHTMLs(self, isgiwaxs, islogging, ispl, timePL, energyPL, intPL, timeGIWAXS, q, intGIWAXS, logData, savePath, sampleName):
         
-        else:
-        
-            plots.htmlPlots(genParams, timePL, energyPL, intPL, timeGIWAXS, q,
-                            intGIWAXS, logData.Pyrometer, logData.Spin_Motor, logData.Time, savePath, sampleName)
+        plots.htmlPlots(isgiwaxs, islogging, ispl, timePL, energyPL, intPL, timeGIWAXS, q, intGIWAXS, logData.iloc[:,4], logData.iloc[:,5], logData.iloc[:,0], savePath, sampleName)
         
         return
+
 
     # save object as pkl file
     def save_object(self, oname=None, save_path=None):
 
         if oname is None:
-            oname = self.sampleName
+            oname = self.folder.stem
 
         if save_path is None:
             path = self.outputPath
@@ -401,6 +401,7 @@ class MMAnalysis(object):
 
         print("Saved everything as {}".format(oname))
         return
+
 
     # restart object from pkl file previously saved
     def restart_from_pickle(self, pkl_file):

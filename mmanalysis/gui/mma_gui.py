@@ -7,6 +7,46 @@ Created on Mon Mar  6 11:03:33 2023
 
 import tkinter as tk
 
+def baseCalibPopUp():
+    # Create the main window
+    root = tk.Tk()
+    root.withdraw()  # Hide the main window
+
+    # Create a Toplevel window for the custom dialog
+    top = tk.Toplevel(root)
+    top.title("Calibration")
+
+    # Add a label to the dialog
+    label = tk.Label(top, text="How would like to calibrate your GIWAXS data?")
+    label.pack(pady=10)
+
+    # Function to handle button clicks
+    def on_button_click(choice):
+        nonlocal result
+        result = choice
+        top.destroy()
+
+    # Initialize result variable
+    result = None
+
+    # Create buttons with custom labels
+    option1 = tk.Button(top, text="New", command=lambda: on_button_click("none"))
+    option1.pack(side=tk.LEFT, padx=5, pady=5)
+
+    option2 = tk.Button(top, text="Select local", command=lambda: on_button_click("local"))
+    option2.pack(side=tk.LEFT, padx=5, pady=5)
+
+    option3 = tk.Button(top, text="Example", command=lambda: on_button_click("default"))
+    option3.pack(side=tk.LEFT, padx=5, pady=5)
+
+    # Run the Tkinter event loop
+    root.wait_window(top)
+
+    # Destroy the main window
+    root.destroy()
+
+    return result
+
 
 def inputGUI(inputDict, DictEntry, numberOfInputs, Title, Labels, TextPrompt):
             

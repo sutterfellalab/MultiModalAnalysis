@@ -6,240 +6,293 @@ Created on Mon Mar  6 10:41:39 2023
 """
 import numpy as np
 import pandas as pd
-import os
-import glob
 from scipy.signal import savgol_filter
 import copy
-from datetime import datetime, timedelta
 from tqdm import tqdm
+import h5py
+import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 
-def convertGIWAXS_data(GIWAXS_data, sample_name, save_path):
-    '''
-    Parameters
-    ----------
-    csv_path : path object,
-        points towards the saved csv file.
-    frames : int,
-        imports the total number of frames taken for the scan
-    sample_name : str,
-        name of the sample. Default is the name under which scan is saved.
-    save_path : path object
-        where the output is saved.
+from importlib.resources import files
 
-    Returns
-    -------
-    three arrays, q, frame_num and full_intensity which are one, one and two-dimensional, respectively.
-    These are saved as csv files.
+from .pyFAICalibration import giwaxsCalibration, refine_calibration
 
-    '''
+def getCalibFiles():
     
-    numFrames = GIWAXS_data.image_num[len(GIWAXS_data)-1] + 1
+    exampleAluminaImage = files('mmanalysis.data') / 'Example_Al2O3_calib_10keV_6p25_2p0_35p0_10s.tif'
+    aluminaCalibrant = files('mmanalysis.data') / 'alumina.D'
+    itoCalibrant = files('mmanalysis.data') / 'ito_calibrant.D'
+    defaultPONI = files('mmanalysis.data') / 'default_calibration.poni'
+    
+    # Convert Path objects to strings
+    exampleAluminaImage = str(exampleAluminaImage)
+    aluminaCalibrant = str(aluminaCalibrant)
+    itoCalibrant = str(itoCalibrant)
+    defaultPONI = str(defaultPONI)
+        
+    return exampleAluminaImage, aluminaCalibrant, itoCalibrant, defaultPONI
 
-    beginTime = GIWAXS_data.time[0]
-    endTime = GIWAXS_data.time[len(GIWAXS_data)-1]
-    print(beginTime)
-    print(endTime)
-    #beginTime = datetime.datetime.fromtimestamp(os.path.getctime(file_path))
+# Function to check if a specific number exists in both arrays - can hopefully be removed once h5 counter works correctly in LabView
+def imagesMatch(numbers, number2, target):
+    return target in numbers and target in number2
 
-    FMT = '%H:%M:%S'
-    tdelta = datetime.strptime(endTime, FMT) - datetime.strptime(beginTime, FMT)
-    if tdelta.days < 0:
-        tdelta = timedelta(
-            days=0,
-            seconds=tdelta.seconds - 43200,
-            microseconds=tdelta.microseconds
-        )
+def loadData(islogging, isgiwaxs, ispl, filePath, calibration):
+    # Open the HDF5 file
+    with h5py.File(filePath, 'r') as h5_file:
         
-    time_per_frame = tdelta.total_seconds() / numFrames
+        dataset = h5_file['Data']
+        giwaxsData = []
+        baseImage = []
+        plData = []
+        wlData = []
+        loggingData = []
+        loggingHeader = []
         
-    print('Time per frame was calculated to: ' + str(time_per_frame) + ' s')
-    
-    frames_numbers = np.unique(GIWAXS_data["frame_number"])
-    q_values = np.unique(GIWAXS_data["qvalue"])
-    
-    # begin_time = datetime.strptime(beginTime, FMT)
-    
-    full_intensity = []
-    frame_times    = []
-    for frame_nr in tqdm(frames_numbers):
-        
-        pd_frame = GIWAXS_data[GIWAXS_data["frame_number"] == frame_nr]
-        
-        data = pd_frame[['intensity', 'izero']].to_numpy()
-        
-        #new_time = datetime.strptime(pd_frame["time"].iloc[0], FMT)
-        new_time = frame_nr*time_per_frame
-        
-        full_intensity.append(np.divide(data[:,0], data[:,1]))
-        frame_times.append(new_time)
-        # frame_times.append((new_time - begin_time).seconds)
-        
-    print(np.average(GIWAXS_data['izero'].unique()))
-    print()
-    
-    return (q_values, np.array(frame_times), np.array(full_intensity))
-
-def getPLData(plParams, PL_files, folder, logTimes):
-      
-    nFiles = len(PL_files)
-    
-    if plParams['Labview']:
-        
-        for i in range(0, len(PL_files)):
-            fileTemp = PL_files[i].split('/')
-            fileTemp2 = fileTemp[-1].split('\\')
-            fileTemp3 = fileTemp2[-1].split(' ')
-            fileNum = fileTemp3[-1].split('.')[0]
+        #%% Logging-Data
+        if islogging:
+            # List all datasets in the 'images' group
+            loggingDataset = dataset['AI']
+            loggingData = loggingDataset[...]
+            loggingHeader1 = loggingDataset.attrs['Data Names']
+            loggingHeader2 = loggingDataset.attrs['Images']
+            loggingHeader = np.concatenate((loggingHeader1, loggingHeader2))
             
-            if len(fileNum) == 3:
-                os.rename(PL_files[i], os.path.join(folder, fileTemp3[0] + ' ' + fileTemp3[1] + ' ' + '00' + fileTemp3[2]))
-                # os.rename(PL_files[i], os.path.join(folder, fileTemp3[0] + ' ' + fileTemp3[1] + ' ' + fileTemp3[2] + ' ' + fileTemp3[3] + ' ' + fileTemp3[4] + ' ' + '00' + fileTemp3[5]))
-            elif len(fileNum) == 4:
-                os.rename(PL_files[i], os.path.join(folder, fileTemp3[0] + ' ' + fileTemp3[1] + ' ' + '0' + fileTemp3[2]))
-                # os.rename(PL_files[i], os.path.join(folder, fileTemp3[0] + ' ' + fileTemp3[1] + ' ' + fileTemp3[2] + ' ' + fileTemp3[3] + ' ' + fileTemp3[4] + ' ' + '0' + fileTemp3[5]))
-        
-    else:
-    
-        #Test if need to rename
-        fileNameG = PL_files[0].split('/')
-        fileNameG2 = fileNameG[-1].split('\\')
-        fileTempG = fileNameG2[-1].split('__')
-    
-        if len(fileTempG) > 1:
-        
-            for i in range(0, len(PL_files)):
-                fileName = PL_files[i].split('/')
-                fileName2 = fileName[-1].split('\\')
-                fileTemp = fileName2[-1].split('__')
+        #%% GIWAXS-Data
+        if isgiwaxs:
+            # List all datasets in the 'images' group
+            giwaxsDatasets = dataset['images']
+            giwaxsDatasetNames = list(giwaxsDatasets.keys())
+            imageNums = [float(datasetName.split()[-1]) for datasetName in giwaxsDatasetNames]
+            i = 0
+            # Load each dataset into a NumPy array
+            for datasetName in giwaxsDatasetNames:
+                if datasetName.startswith('Pilatus') and imagesMatch(imageNums, loggingData[:,-1], imageNums[i]):
+                    giwaxsImage = giwaxsDatasets[datasetName]
+                    imageData = giwaxsImage[...]
+                    giwaxsData.append(imageData)
+                i += 1
                 
-                os.rename(PL_files[i], os.path.join(folder, fileTemp[0] + '_' + fileTemp[2]))
-            
-    PL_files = sorted(glob.glob(folder + "*.txt")) 
-
-    if plParams['Thorlabs']:
-        # Reading timestamps and converting to time from first spectrum in seconds
-        mTime = np.zeros((nFiles, 6))
-        for i in range(0, nFiles):
-            # Import file information
-            fileName = PL_files[i].split('\\')[1]
-            timeStamp = fileName.split('_')[-4:]
-            mTime[i, 0:3] = timeStamp[0:3]
-            mTime[i, 3] = timeStamp[-1].split('.')[0]
-            mTime[i, -2] = mTime[i, 0] * 3600 + mTime[i, 1] * 60 + mTime[i, 2] + mTime[i, 3] * 0.001
-            if i > 0:
-                mTime[i, -1] = mTime[i, -2] - mTime[0, -2]
-
-        # defining X-axis using the timestamps as calculated above
-        df_x = mTime[:, -1]
-        # reading all files
-        df_all = np.concatenate([pd.read_csv(f, sep=";", header=0) for f in PL_files], axis=1)
+            baseImage = h5_file['base_image'][:]
+    
+        #%% PL-Data  
+        if ispl:
+            # List all datasets in the 'spectrums' group
+            plDatasets = dataset['spectrums']
+            plDatasetNames = list(plDatasets.keys())
+    
+            # Load each dataset into a NumPy array
+            firstDataset = True
+            for datasetName in plDatasetNames:
+                plDataset = plDatasets[datasetName]
+                data = plDataset[...]
+                if firstDataset:
+                    wlData.append(data.transpose()[0])
+                    firstDataset = False
+                plData.append(data.transpose()[1])
         
-    elif plParams['Labview']:
-        # defining X-axis using the timestamps from the logfile
-        df_x = logTimes
-        # reading all files
-        df_all = np.concatenate([pd.read_csv(f, sep="\t", header=1) for f in tqdm(PL_files)], axis=1)
-    else:
-        # Reading timestamps and converting to time from first spectrum in seconds
-        mTime = np.zeros((nFiles, 6))
-        for i in range(0, nFiles):
-            # Import file information
-            fileName = PL_files[i].split('\\')[1]
-            timeStamp = fileName.split('_')[-1]
-            time = timeStamp.split('.')[0]
-            mTime[i, 0:4] = time.split('-')
-            mTime[i, -2] = mTime[i, 0] * 3600 + mTime[i, 1] * 60 + mTime[i, 2] + mTime[i, 3] * 0.001
-            if i > 0:
-                mTime[i, -1] = mTime[i, -2] - mTime[0, -2]
+    return plData, wlData, giwaxsData, loggingData, loggingHeader, baseImage
 
-        # defining X-axis using the timestamps as calculated above
-        df_x = mTime[:, -1]
-        # reading all files
-        df_all = np.concatenate([pd.read_csv(f, sep="\t", header=14) for f in PL_files], axis=1)
+def integrate_image(ai, image, npt=1000, azimuth_range=None):
+    if azimuth_range is not None:
+        azimuth_range = tuple(azimuth_range)
+    q, intensity = ai.integrate1d(data = image, npt=npt, unit="q_A^-1", azimuth_range=azimuth_range)
+    return q, intensity
 
-    # separating wavelength values
-    df_y = df_all[:, 0]
-
-    # deleting every other column (all wavelength values) leaving only intensities
-    df = np.delete(df_all, list(range(0, df_all.shape[1], 2)), axis=1)
-    # =======================Part 2: Initial Modifications==================================
+def compute_average_intensity(image, roi):
+    """
+    Compute the average intensity of pixels within the region of interest (ROI).
     
-    if plParams['Labview']:
-        df = df - np.mean(df[-1,:])
-
-    # removing negative points from data (important for log plot, also helps with scaling)
-    #df = np.where(df <= 0, 0.01, df)
+    Args:
+        image (numpy.ndarray): The input image.
+        roi (numpy.ndarray): A binary mask representing the region of interest.
+        
+    Returns:
+        float: The average intensity of pixels within the ROI.
+    """
+    # Sum the pixel values in the region of interest (this is much faster than indexing and using np.mean)
+    sum_intensity = np.sum(image * roi)
     
+    # Count the number of pixels in the region of interest
+    count_pixels = np.sum(roi)
+    
+    # Compute the average intensity
+    average_intensity = sum_intensity / count_pixels
+    
+    return average_intensity
+
+def create_roi(image_shape, roi_coordinates):
+    """
+    Create a binary mask representing the region of interest (ROI).
+    
+    Args:
+        image_shape (tuple): The shape of the image (height, width).
+        roi_coordinates (tuple): The coordinates of the ROI (start_y, start_x, end_y, end_x).
+        
+    Returns:
+        numpy.ndarray: A binary mask representing the ROI.
+    """
+    # Create an empty binary mask
+    roi = np.zeros(image_shape, dtype=np.uint8)
+    
+    # Set the ROI region to 1
+    for i in range(0, len(roi_coordinates)):
+        start_y, start_x, end_y, end_x = roi_coordinates[i]
+        roi[start_y:end_y, start_x:end_x] = 1
+    
+    return roi
+
+def convertPL(wavelength, time, data, plParams):
+
+    time = time.squeeze()
+    
+    data = np.transpose(data - np.mean(data[-1,:])) 
+
     if plParams['smoothing']:
-        df = savgol_filter(df, plParams['sFactor'], 0)
+        data = savgol_filter(data, plParams['sFactor'], 0)
         
     #Option to sum up a certain number (binning) of spectra each to improve the fitting accuracy in trade for a loss of time resolution.
     if plParams['binning'] > 0:
-        df_Bin = copy.deepcopy(df)
-        df_Bin = df[:, 0:int(df_x.shape[0]/plParams['binning'])]
-        for i in range(0, df_Bin.shape[1]):
-            df_Bin[:,i] = np.sum(df[:, plParams['binning']*i:plParams['binning']*i+plParams['binning']], axis=1)
-        df = df_Bin
-        df_x = df_x[::plParams['binning']][0:df_Bin.shape[1]]
+        data_Bin = copy.deepcopy(data)
+        data_Bin = data[:, 0:int(time.shape[0]/plParams['binning'])]
+        for i in range(0, data_Bin.shape[1]):
+            data_Bin[:,i] = np.sum(data[:, plParams['binning']*i:plParams['binning']*i+plParams['binning']], axis=1)
+        data = data_Bin
+        time = time[::plParams['binning']][0:data_Bin.shape[1]]
 
     # transition to energy scale of the y axis
     
-    df_y_E = [1240 / i for i in df_y]
+    energy = [1240 / i for i in wavelength]
 
     # Jacobian transformation for all measured PL values (basically dividing by E^2)
-    df_E = df.copy()
-    for i in range(np.shape(df)[1]):
-        df_E[:, i] = df[:, i] / df_y_E / df_y_E
+    data_E = data.copy()
+    for i in range(np.shape(data)[1]):
+        data_E[:, i] = data[:, i] / energy / energy
 
-    # Mirroring dataframes to prevent sorting issues
-    df_y_E = np.flip(df_y_E)
-    df_E = np.flip(df_E, axis=0)
+    # Mirroring dataframes to prevent sorting issues  ## check if still correct
+    energy = np.flip(energy).squeeze()
+    data_E = np.flip(data_E, axis=0)
     
     # Making a log-version of the intensity dataframe for contour plots
-    df_Elog = copy.deepcopy(df_E)
-    df_Elog = np.where(df_Elog < 0.1, 0.1, df_Elog)
-    df_Elog = np.log(df_Elog)
+    data_Elog = copy.deepcopy(data_E)
+    data_Elog = np.where(data_Elog < 0.1, 0.1, data_Elog)
+    data_Elog = np.log(data_Elog)
     
-    return df_x, df_y, df_y_E, df, df_E, df_Elog 
+    return time, wavelength, energy, data_E, data_Elog 
 
-def getLogData(logParams, logFile):
-    
-    if logParams['TempOld']:
-        
-        header = 1 # rows to skip 
+def getData(plParams, sampleNames, islogging, isgiwaxs, ispl, reCalibrant, calib_file_path, outputPath, h5_files):
 
-        names=np.array(['Time of Day', 'Pyrometer'])
-        logData = pd.read_csv(logFile, header = 0, names = names, skiprows = header)
-        time = np.zeros(len(logData.iloc[:,0]))
-        for i in range(0,len(logData.iloc[:,0])):
-            mTime = logData.iloc[i,0]
-            tempTime = mTime.split('-')[3]
-            time[i] = float(tempTime.split(':')[0]) * 3600 + float(tempTime.split(':')[1]) * 60 + float(tempTime.split(':')[2])
-            if i > 0:
-                time[i] = time[i] - time[0]
-        time[0] = 0.0
-        logData['Time'] = time
-        logSelection = ['Time', 'Pyrometer']
-        logDataSelect = logData[logSelection]
+    # Load the calibration file
+    ai = AzimuthalIntegrator()
+    ai.load(calib_file_path)  #path to gneral calibration poni (e.g. alumina)
+
+    # User-defined integration parameters (first two should be moved into settings/setup at some point)
+    npt = 1000
+    azimuth_range = [160, 180] ## Check after image rotation if this is still correct, consider larger range and/or mirroring it
+    loggingData_batch = []
+    q_values_batch = []
+    giwaxsTime_batch = []
+    giwaxsData1D_batch = []
+    plTimePre_batch = []
+    plWavelengthPre_batch = []
+    plEnergyPre_batch = []
+    plDataPre_batch = []
+    plDataLogPre_batch = []
+
+
+    # Process each file
+    for i in range(0, len(h5_files)):
+        plData, wlData, giwaxsData2D, loggingData, loggingHeader, recalib_image = loadData(islogging, isgiwaxs, ispl, h5_files[i], None)
+        giwaxsData1D = []
+        q_values = []
         
-    else:
-        if logParams['LabviewPL']:
-            # Old files:
-            # names=np.array(['Time of Day', 'Time', 'Image Counts', 'Pyrometer', 'Dispense X', 'Dispense Z', 'Gas Quenching', 'Sine', 'Spin_Motor', 'BK Set Amps', 'BK Set Volts', 'BK Amps', 'BK Volts', 'BK Power', '2D Image', 'Spectrometer'])
-            # New files:
-            names=np.array(['Time of Day', 'Time', 'Image Counts', 'Pyrometer', 'Spin_Motor', 'BK Set Amps', 'BK Set Volts', 'BK Amps', 'BK Volts', 'BK Watts', 'BK Resistance', 'Dispense X', 'Dispense Z', 'Gas Quenching', 'Crystal 1 Encoder',	'Crystal 2 Encoder',	'Mono Energy',	'Beam Current', 'SR Energy',	'Counter 0',	'Counter 1',	'Counter 2',	'Counter 3',	'Counter Gate',	'Vert Centroid',	'Horz Centroid',	'Vert FWHM',	'Horz FWHM',	'M1 Bend 1',	'M1 Bend 2',	'Horizontal KBTranslation',	'Horizontal KB Pitch',	'Horizontal KB Bend 1',	'Horizontal KB Bend 2', 'Horizontal KB Roll',	'Horizontal KB Z', 'Vertical KB Translation',	'Vertical KB Pitch',	'Vertical KB Bend 1',	'Vertical KB Bend 2', 'Vertical KB Roll',	'TC KB Horz', 'TC Hutch 1',	'TC Tank 1',	'TC Hutch 2',	'TC Tank 2',	'TC Hutch 3', 'TC Tank 3',	'TC Hutch 4',	'Strain Gauge Channel 0',	'Strain Gauge Channel 1',	'AI Channel 0	', 'AI Channel 1',	'AI Channel 2	', 'Load Stage Strain Gauge',	'Load Stage LVDT',	'Centroid Intensity',	'Video Background',	'Absolute Horz Centroid',	'Absolute Vertical Centroid',	'LabVIEW Memory',	'Fake Motor 1',	'Fake Motor 2	', '2D Image',	'QEPro'])
-        else:
-            # names=np.array(['Time of Day', 'Time', 'Pyrometer', 'Dispense X', 'Dispense Z', 'Gas Quenching', 'Spin_Motor', 'BK Set Amps', 'BK Set Volts', 'BK Amps', 'BK Volts', 'BK Power', 'Sine'])
-            names=np.array(['Time of Day', 'Time', 'Image Counts', 'Pyrometer', 'Spin_Motor', 'BK Set Amps', 'BK Set Volts', 'BK Amps', 'BK Volts', 'BK Watts', 'BK Resistance', 'Dispense X', 'Dispense Z', 'Gas Quenching', 'Crystal 1 Encoder',	'Crystal 2 Encoder',	'Mono Energy',	'Beam Current', 'SR Energy',	'Counter 0',	'Counter 1',	'Counter 2',	'Counter 3',	'Counter Gate',	'Vert Centroid',	'Horz Centroid',	'Vert FWHM',	'Horz FWHM',	'M1 Bend 1',	'M1 Bend 2',	'Horizontal KBTranslation',	'Horizontal KB Pitch',	'Horizontal KB Bend 1',	'Horizontal KB Bend 2', 'Horizontal KB Roll',	'Horizontal KB Z', 'Vertical KB Translation',	'Vertical KB Pitch',	'Vertical KB Bend 1',	'Vertical KB Bend 2', 'Vertical KB Roll',	'TC KB Horz', 'TC Hutch 1',	'TC Tank 1',	'TC Hutch 2',	'TC Tank 2',	'TC Hutch 3', 'TC Tank 3',	'TC Hutch 4',	'Strain Gauge Channel 0',	'Strain Gauge Channel 1',	'AI Channel 0	', 'AI Channel 1',	'AI Channel 2	', 'Load Stage Strain Gauge',	'Load Stage LVDT',	'Centroid Intensity',	'Video Background',	'Absolute Horz Centroid',	'Absolute Vertical Centroid',	'LabVIEW Memory',	'Fake Motor 1',	'Fake Motor 2	', '2D Image',	'QEPro'])
+        if islogging:
+            # Create and simplify logging dataframe:
+            dfLoggingComplete = pd.DataFrame(loggingData, columns=loggingHeader)   
+            if ispl and isgiwaxs:
+                dfLogging = dfLoggingComplete[["Time (s)", "Pilatus", "QEPro", "Pyrometer", "Spin Motor", "Dispense X", "Gas Quenching"]]
+            elif isgiwaxs:
+                dfLogging = dfLoggingComplete[["Time (s)", "Pilatus", "Pyrometer", "Spin Motor", "Dispense X", "Gas Quenching"]]
+            elif ispl:
+                dfLogging = dfLoggingComplete[["Time (s)", "QEPro", "Pyrometer", "Spin Motor", "Dispense X", "Gas Quenching"]]
+            # plt.imshow(recalib_image)
+            
+            # Collecting everything
+            loggingData_batch.append(dfLogging) 
         
-        with open(logFile) as f:
-            for i, l in enumerate(f):
-                if l.startswith('DATA'):
-                    header = i+1
-                    break
+        if isgiwaxs:
+            # Create time arrays for GIWAXS:
+            uniqueGIWAXS, firstIdxGIWAXS = np.unique(dfLogging.iloc[:, dfLogging.columns.to_list().index('Pilatus')].to_numpy(), return_index=True)
+            giwaxsTime = dfLogging["Time (s)"].to_numpy()[firstIdxGIWAXS]
+
+            # Re-calibration using the substrate of the actual sample
+            newPONIPath = outputPath + '/' + sampleNames[i] + '_ITO-calib.poni'
+            print("Refining calibration for Sample " + sampleNames[i] + '...')
+            # Perform substrate-recalibration
+            refine_calibration(sampleNames[i], recalib_image.T, calib_file_path, str(reCalibrant), newPONIPath)
+            ai.load(newPONIPath)
+            
+            # Background/I-Zero correction
                 
-        logData = pd.read_csv(logFile, sep='\t', header = 0, names = names, skiprows = header)
-        logSelection = ['Time', 'Pyrometer', 'Spin_Motor', 'Dispense X']
-        logDataSelect = logData[logSelection]
+            # Define the coordinates of the region of interest for background correction (start_y, start_x, end_y, end_x)
+            roi_coordinates = [(1, 1, 190, 125)]
+            # Create the region of interest (ROI) mask
+            roi_mask = create_roi(giwaxsData2D[-1].shape, roi_coordinates)
+            # # Plot the image with the ROI marked
+            # plt.figure(figsize=(8, 6))
+            # plt.imshow(roi_mask, cmap='gray')  # Overlay the ROI mask
+            # plt.imshow(giwaxsData2D[-1], cmap='jet', norm=colors.LogNorm(vmin=0.1, vmax=np.max(giwaxsData2D[-1])/10), alpha=0.5)
+            # plt.title('Image with ROI')
+            # plt.colorbar(label='Intensity')
+            # plt.show()
+            # plt.pause(1)
+            
+            tempIntensity = []
+                
+            # GIWAXS integration
+            for ii in tqdm(range(0, len(giwaxsData2D)), desc="Integrating GIWAXS frames of Sample " + str(i+1) + " of " + str(len(h5_files))):
+                
+                # Correcting the image intensities by an average background intensity
+                tempiZero = compute_average_intensity(giwaxsData2D[ii], roi_mask)
+                # Normalize intensity by background value
+                # giwaxsData2D[ii] = giwaxsData2D[ii] / tempiZero ##need to figure out whats going on here once i get the updated h5 file
+                
+                # Perform azimuthal integration
+                q, intensity = integrate_image(ai, giwaxsData2D[ii], npt=npt, azimuth_range=azimuth_range)
+                giwaxsData1D.append(intensity)
+                
+                if ii == 0:
+                    q_values = q
+                    
+            ##Just for troubleshooting:
+                    
+            #     tempIntensity.append(tempiZero)
+                
+            # plt.figure(figsize=(8, 6))
+            # plt.plot(giwaxsTime, tempIntensity)
+
+            # plt.show()
+            # plt.pause(1)
+
+            # Collecting everything
+            q_values_batch.append(q_values)
+            giwaxsTime_batch.append(giwaxsTime)
+            giwaxsData1D_batch.append(np.array(giwaxsData1D))
+            
+        if ispl:
+            # Create time arrays for PL:
+            uniquePL, firstIdxPL = np.unique(dfLogging["QEPro"].to_numpy(), return_index=True)
+            plTime = dfLogging["Time (s)"].to_numpy()[firstIdxPL]
         
-    return logDataSelect
+            # PL data manipulation        
+            plTimePre, plWavelengthPre, plEnergyPre, plDataPre, plDataLogPre = convertPL(wlData, plTime, np.array(plData), plParams) #make sure dimensions of the array are correct for the function ## add wavelength and isolate time-array form dataframe
+            
+            # Collecting everything 
+            plTimePre_batch.append(plTimePre)
+            plWavelengthPre_batch.append(plWavelengthPre)
+            plEnergyPre_batch.append(plEnergyPre)
+            plDataPre_batch.append(plDataPre)
+            plDataLogPre_batch.append(plDataLogPre)
+        
+                
+    return loggingData_batch, q_values_batch, giwaxsTime_batch, giwaxsData1D_batch, plTimePre_batch, plEnergyPre_batch, plDataPre_batch, plDataLogPre_batch
