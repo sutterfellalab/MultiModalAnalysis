@@ -21,172 +21,154 @@ from mmanalysis.mmanalysis import MMAnalysis
 
 #%%
 
-def main(folder=None):
+def main(name=None, restart_file=None, folder=None, giwaxs=True, pl=True, logdata=True, igor=False):
+    
+    """Main function for the mmnalysis command-line interface."""
+    
+    mMA_Object = MMAnalysis(
+        name=name,
+        restart_file=restart_file, 
+        folder=folder,
+        giwaxs=giwaxs,
+        pl=pl,
+        logdata=logdata,
+        igor=igor
+        )
 
-    testObj = MMAnalysis("Testsample", folder=folder)
-    
-    
-    if testObj.genParams['Logging']:
-                
-        print("_____________________________________________________________")
-        print("Logging Data Selection...")
-    
-        continueMain = False
-    
-        while continueMain is False:
-            if testObj.genParams['TempOld']:
-                testObj.plotLog(True, False, testObj.sampleName, testObj.outputPath, testObj.logDataRaw)
-            
-                testObj.plotLog(False, False, testObj.sampleName, testObj.outputPath, testObj.logDataPost)
-            else:
+    for file in range(0, mMA_Object.numFiles):
+        
+        print("Data selection for Sample " + mMA_Object.sampleName[file] + "...")
+        
+        #%%
+        if mMA_Object.logging:
+                    
+            continueMain = False
+        
+            while continueMain is False:
+        
                 #Finding the start time automatically
-                testObj.suggestedLogTimeIdx = next(x for x, val in enumerate(testObj.logDataRaw.Spin_Motor) if val > 0) 
-                #print("Automated guess for the starting time is " + str(testObj.logDataRaw.Time[testObj.suggestedLogTimeIdx]) + ' s')
-    
-                testObj.plotLog(True, True, testObj.sampleName, testObj.outputPath, testObj.logDataRaw)
-            
-                testObj.plotLog(False, True, testObj.sampleName, testObj.outputPath, testObj.logDataPost)
-    
-            #if input('Continue? (y/n) ') == 'y':
-            if tk.messagebox.askquestion("test", "Continue?") == 'yes':
-                continueMain = True
+                mMA_Object.suggestedLogTimeIdx = next(x for x, val in enumerate(mMA_Object.loggingBatch[file].iloc[:,4]) if val > 0) # 4 is spin motor as set in mMA_importing
                 
-        testObj.logDataPost.to_csv(testObj.outputPath + '/Log-Data.csv', index=0)
+                
+                mMA_Object.plotLog(True, mMA_Object.sampleName[file], mMA_Object.outputPath, mMA_Object.loggingBatch[file], file)
+            
+                mMA_Object.plotLog(False, mMA_Object.sampleName[file], mMA_Object.outputPath, mMA_Object.logDataPost[file], file)
+        
+        
+                if tk.messagebox.askquestion("test", "Continue?") == 'yes':
+                    continueMain = True
+                    
+            mMA_Object.logDataPost[file].to_csv(mMA_Object.outputPath + '/'  + mMA_Object.sampleName[file] + '_Log-Data' + '.csv', index=0)
+           
+        #%%
+        if mMA_Object.giwaxs:
+        
+            continueMain = False
+    
+            while continueMain is False:
+                
+                mMA_Object.plotGIWAXS(True, mMA_Object.sampleName[file], mMA_Object.outputPath, mMA_Object.qBatch[file], mMA_Object.giwaxsTimeBatch[file], mMA_Object.giwaxsIntensity2DBatch[file], file)
+                
+                mMA_Object.plotGIWAXS(False, mMA_Object.sampleName[file], mMA_Object.outputPath, mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsIntensityPost[file], file)
+    
+                if tk.messagebox.askquestion("test", "Continue?") == 'yes':
+                    continueMain = True
+                    
+            fitting = True
+            
+            while fitting is True:
+                    
+                if tk.messagebox.askquestion("test", "(Re-)Start peak fitting?") == 'yes':
+                    
+                    mMA_Object.giwaxsFits(mMA_Object.sampleName[file], mMA_Object.outputPath, mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsIntensityPost[file])
+                    
+                else:
+                    
+                    fitting = False
+            
+            dfPatterns = mMA_Object.plotIndividually('GIWAXS_', 'patterns', 'q ($\AA$)', '_Indv_GIWAXS-Patterns', mMA_Object.sampleName[file], mMA_Object.outputPath, mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsIntensityPost[file])
+            if type(dfPatterns) is not str:
+                dfPatterns[mMA_Object.sampleName[file] + '_q_Patterns'] = mMA_Object.giwaxsQPost[file]
+                dfPatterns.to_csv(os.path.join(mMA_Object.outputPath, mMA_Object.sampleName[file] + '_Indv_GIWAXS-Patterns.csv'), index=None)
+                
+        #%%    
+        if mMA_Object.pl:
+                        
+            continueMain = False
+            
+            while continueMain is False:
+                
+                mMA_Object.plotPL(True, mMA_Object.sampleName[file], mMA_Object.outputPath, mMA_Object.plEnergyBatch[file], mMA_Object.plTimeBatch[file], mMA_Object.plIntensityBatch[file], mMA_Object.plIntensityLogBatch[file], file)
+                
+                mMA_Object.plotPL(False, mMA_Object.sampleName[file], mMA_Object.outputPath, mMA_Object.plEnergyPost[file], mMA_Object.plTimePost[file], mMA_Object.plIntensityPost[file], mMA_Object.plIntensityLogPost[file], file)
+                
+                if tk.messagebox.askquestion("test", "Continue?") == 'yes':
+                    continueMain = True
+                    
+            fitting = True
+            
+            while fitting is True:
+                    
+                if tk.messagebox.askquestion("test", "(Re-)Start peak fitting?") == 'yes':
+                    
+                    mMA_Object.plFits(mMA_Object.plEnergyPost[file], mMA_Object.plTimePost[file], mMA_Object.plIntensityPost[file], mMA_Object.sampleName[file], mMA_Object.outputPath)
+            
+                else:
+                    
+                    fitting = False
+                    
+            dfSpectra = mMA_Object.plotIndividually('PL_', 'spectra', 'Energy (eV)', '_Indv_PL-Spectra', mMA_Object.sampleName[file], mMA_Object.outputPath, mMA_Object.plEnergyPost[file], mMA_Object.plTimePost[file], mMA_Object.plIntensityPost[file].T)
+            if type(dfSpectra) is not str:
+                dfSpectra[mMA_Object.sampleName[file] + '_Energy_Spectra'] = mMA_Object.plEnergyPost[file]
+                dfSpectra.to_csv(os.path.join(mMA_Object.outputPath, mMA_Object.sampleName[file] + '_Indv_PL-Spectra.csv'), index=None)
+    
+        #%%    
+        
+        if mMA_Object.giwaxs and mMA_Object.pl and mMA_Object.logging:
+            
+            print("Please close all figures to continue.")
+            
+            mMA_Object.plotStacked(mMA_Object.pl, mMA_Object.sampleName[file], mMA_Object.outputPath, mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsIntensityPost[file], mMA_Object.plEnergyPost[file], mMA_Object.plTimePost[file], mMA_Object.plIntensityPost[file], mMA_Object.logDataPost[file], mMA_Object.logTimeEndIdx[file])
+
+            mMA_Object.saveHTMLs(mMA_Object.giwaxs, mMA_Object.logging, mMA_Object.pl, mMA_Object.plTimePost[file], mMA_Object.plEnergyPost[file], mMA_Object.plIntensityPost[file], mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsIntensityPost[file], mMA_Object.logDataPost[file], mMA_Object.outputPath, mMA_Object.sampleName[file])
+            
+            print("_____________________________________________________________")
+            
+        elif mMA_Object.giwaxs and mMA_Object.logging:
+            
+            print("Please close all figures to continue.")
+            
+            mMA_Object.plotStacked(mMA_Object.pl, mMA_Object.sampleName[file], mMA_Object.outputPath, mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsIntensityPost[file], [], [], [], mMA_Object.logDataPost[file], mMA_Object.logTimeEndIdx[file])
+
+            mMA_Object.saveHTMLs(mMA_Object.giwaxs, mMA_Object.logging, mMA_Object.pl, [], [], [], mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsIntensityPost[file], mMA_Object.logDataPost[file], mMA_Object.outputPath, mMA_Object.sampleName[file])
+            
+            print("_____________________________________________________________")
+            
+        #%%
+                        
+        if mMA_Object.igor:  
+            
+            # Optimizing data for plots in Igor - take out if not using Igor
+            mMA_Object.giwaxsTimePost[file] = np.append(mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsTimePost[file][-1]+mMA_Object.giwaxsTimePost[file][-1]-mMA_Object.giwaxsTimePost[file][-2])
+            mMA_Object.giwaxsQPost[file] = np.append(mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsQPost[file][-1]+mMA_Object.giwaxsQPost[file][-1]-mMA_Object.giwaxsQPost[file][-2])
+            
+            if mMA_Object.pl:
+                # Optimizing data for plots in Igor - take out if not using Igor
+                mMA_Object.plTimePost[file] = np.append(mMA_Object.plTimePost[file], mMA_Object.plTimePost[file][-1]+mMA_Object.plTimePost[file][-1]-mMA_Object.plTimePost[file][-2])
+                mMA_Object.plEnergyPost[file] = np.append(mMA_Object.plEnergyPost[file], mMA_Object.plEnergyPost[file][-1]+mMA_Object.plEnergyPost[file][-1]-mMA_Object.plEnergyPost[file][-2])
+                
+        np.savetxt(mMA_Object.outputPath + '/' + mMA_Object.sampleName[file] + '_GIWAXS_qValues.csv', mMA_Object.giwaxsQPost[file], delimiter=",", header = mMA_Object.sampleName[file] + '_q-Values')
+        np.savetxt(mMA_Object.outputPath + '/' + mMA_Object.sampleName[file] + '_GIWAXS_Time.csv', mMA_Object.giwaxsTimePost[file], delimiter=",", header = mMA_Object.sampleName[file] + '_GIWAXS_Time')
+        np.savetxt(mMA_Object.outputPath + '/' + mMA_Object.sampleName[file] + '_GIWAXS_Intensity.csv', mMA_Object.giwaxsIntensityPost[file], delimiter=",")
+        
+        if mMA_Object.pl:
+            np.savetxt(mMA_Object.outputPath + '/' + mMA_Object.sampleName[file] + '_PL_Energy.csv', mMA_Object.plEnergyPost[file], delimiter=",", header = mMA_Object.sampleName[file] + '_Energy') 
+            np.savetxt(mMA_Object.outputPath + '/' + mMA_Object.sampleName[file] + '_PL_Time.csv', mMA_Object.plTimePost[file], delimiter=",", header = mMA_Object.sampleName[file] + '_PLTime')
+            np.savetxt(mMA_Object.outputPath + '/' + mMA_Object.sampleName[file] + '_PL_Intensity.csv', mMA_Object.plIntensityPost[file].T, delimiter=",")
+    
+        
        
-    #%%
-    
-    if testObj.genParams['GIWAXS']:
-    
-        continueMain = False
-        
-        print("_____________________________________________________________")
-        print("GIWAXS Data Selection...")
-        
-        while continueMain is False:
-            
-            #Finding the start time automatically
-            intInt = testObj.giwaxsIntensityRaw.sum(axis=1)
-            intIntDiff = [x - z for x, z in zip(intInt[:-1], intInt[1:])]
-            intInt_Idx = min(range(len(intIntDiff[0:10])), key=intIntDiff[0:10].__getitem__) 
-            testObj.suggestedGIWAXSTime = (testObj.giwaxsTimeRaw[intInt_Idx] + testObj.giwaxsTimeRaw[intInt_Idx + 1]) / 2
-            #print("Automated guess for the starting time is " + str(testObj.suggestedGIWAXSTime) + ' s')
-        
-            testObj.plotGIWAXS(True, testObj.sampleName, testObj.outputPath, testObj.qRaw, testObj.giwaxsTimeRaw, testObj.giwaxsIntensityRaw)
-            
-            testObj.plotGIWAXS(False, testObj.sampleName, testObj.outputPath, testObj.giwaxsQPost, testObj.giwaxsTimePost, testObj.giwaxsIntensityPost)
-            
-            #if input('Continue? (y/n) ') == 'y':
-            if tk.messagebox.askquestion("test", "Continue?") == 'yes':
-                continueMain = True
-                
-        np.savetxt(testObj.outputPath + '/' + testObj.sampleName + '_GIWAXS_qValues.csv', testObj.giwaxsQPost, delimiter=",", header = testObj.sampleName + '_q-Values')
-        np.savetxt(testObj.outputPath + '/' + testObj.sampleName + '_GIWAXS_Time.csv', testObj.giwaxsTimePost, delimiter=",", header = testObj.sampleName + '_GIWAXS_Time')
-        np.savetxt(testObj.outputPath + '/' + testObj.sampleName + '_GIWAXS_Intensity.csv', testObj.giwaxsIntensityPost, delimiter=",")
-                
-        fitting = True
-        
-        while fitting is True:
-                
-            #if input("(Re-)Start peak fitting? (y/n) ") == 'y':
-            if tk.messagebox.askquestion("test", "(Re-)Start peak fitting?") == 'yes':
-                
-                testObj.giwaxsFits(testObj.sampleName, testObj.outputPath, testObj.giwaxsQPost, testObj.giwaxsTimePost, testObj.giwaxsIntensityPost)
-                
-            else:
-                
-                fitting = False
-        
-        dfPatterns = testObj.plotIndividually('GIWAXS_', 'patterns', 'q (Å)', '_Indv_GIWAXS-Patterns', testObj.sampleName, testObj.outputPath, testObj.giwaxsQPost, testObj.giwaxsTimePost, testObj.giwaxsIntensityPost)
-        if type(dfPatterns) is not str:
-            dfPatterns[testObj.sampleName + '_q_Patterns'] = testObj.giwaxsQPost
-            dfPatterns.to_csv(os.path.join(testObj.outputPath, testObj.sampleName + '_Indv_GIWAXS-Patterns.csv'), index=None)
-            
-    #%%    
-    
-    if testObj.genParams['PL']:
-            
-        print("_____________________________________________________________")
-        print("PL Data Selection...")
-        
-        continueMain = False
-        
-        while continueMain is False:
-            
-            testObj.plotPL(True, testObj.sampleName, testObj.outputPath, testObj.plEnergyRaw, testObj.plTimeRaw, testObj.plIntensityERaw, testObj.plWavelengthRaw, testObj.plIntensityRaw, testObj.plIntensityERawLog)
-            
-            testObj.plotPL(False, testObj.sampleName, testObj.outputPath, testObj.plEnergyPost, testObj.plTimePost, testObj.plIntensityPost, testObj.plWavelengthRaw, testObj.plIntensityRaw, testObj.plIntensityLogPost)
-            
-            #if input('Continue? (y/n) ') == 'y':
-            if tk.messagebox.askquestion("test", "Continue?") == 'yes':
-                continueMain = True
-             
-        # Optimizing data for plots in Igor - take out if not using Igor
-        #df_Igor = np.transpose(df_cut)
-        testObj.plTimePostIgor = np.append(testObj.plTimePost, testObj.plTimePost[-1]+testObj.plTimePost[-1]-testObj.plTimePost[-2])
-        testObj.plEnergyPostIgor = np.append(testObj.plEnergyPost, testObj.plEnergyPost[-1]+testObj.plEnergyPost[-1]-testObj.plEnergyPost[-2])
-        
-        np.savetxt(testObj.outputPath + '/' + testObj.sampleName + '_PL_Energy.csv', testObj.plEnergyPostIgor, delimiter=",", header = testObj.sampleName + '_Energy') 
-        np.savetxt(testObj.outputPath + '/' + testObj.sampleName + '_PL_Time.csv', testObj.plTimePostIgor, delimiter=",", header = testObj.sampleName + '_PLTime')
-        np.savetxt(testObj.outputPath + '/' + testObj.sampleName + '_PL_Intensity.csv', testObj.plIntensityPost, delimiter=",")
-                
-        fitting = True
-        
-        while fitting is True:
-                
-            #if input("(Re-)Start peak fitting? (y/n) ") == 'y':
-            if tk.messagebox.askquestion("test", "(Re-)Start peak fitting?") == 'yes':
-                
-                testObj.plFits(testObj.plEnergyPost, testObj.plTimePost, testObj.plIntensityPost, testObj.sampleName, testObj.outputPath)
-        
-            else:
-                
-                fitting = False
-                
-        dfSpectra = testObj.plotIndividually('PL_', 'spectra', 'Energy (eV)', '_Indv_PL-Spectra', testObj.sampleName, testObj.outputPath, testObj.plEnergyPost, testObj.plTimePost, testObj.plIntensityPost.T)
-        if type(dfSpectra) is not str:
-            dfSpectra[testObj.sampleName + '_Energy_Spectra'] = testObj.plEnergyPost
-            dfSpectra.to_csv(os.path.join(testObj.outputPath, testObj.sampleName + '_Indv_PL-Spectra.csv'), index=None)
-            
-        dfSpectra2 = testObj.plotIndividually('PL_', 'spectra', 'Energy (eV)', '_Indv_PL-Spectra_2', testObj.sampleName, testObj.outputPath, testObj.plEnergyPost, testObj.plTimePost, testObj.plIntensityPost.T)
-        if type(dfSpectra2) is not str:
-            dfSpectra2[testObj.sampleName + '_Energy_Spectra'] = testObj.plEnergyPost
-            dfSpectra2.to_csv(os.path.join(testObj.outputPath, testObj.sampleName + '_Indv_PL-Spectra_2.csv'), index=None)
-            
-    #%%    
-    
-    if testObj.genParams['GIWAXS'] and testObj.genParams['PL'] and testObj.genParams['Logging']:
-        
-        print("_____________________________________________________________")
-        print("Working on the stacked plots. This may take a minute...")
-        
-        testObj.plotStacked(testObj.genParams, testObj.sampleName, testObj.outputPath, testObj.giwaxsQPost, testObj.giwaxsTimePost, testObj.giwaxsIntensityPost, testObj.plEnergyPost, testObj.plTimePost, testObj.plIntensityPost, testObj.logDataPost, testObj.logTimeEndIdx)
-        
-        testObj.saveHTMLs(testObj.genParams, testObj.plTimePost, testObj.plEnergyPost, testObj.plIntensityPost, testObj.giwaxsTimePost, testObj.giwaxsQPost, testObj.giwaxsIntensityPost, testObj.logDataPost, testObj.outputPath, testObj.sampleName)
-        
-    elif testObj.genParams['GIWAXS'] and testObj.genParams['Logging']:
-        
-        print("_____________________________________________________________")
-        print("Working on the stacked plots. This may take a minute...")
-        
-        testObj.plotStacked(testObj.genParams, testObj.sampleName, testObj.outputPath, testObj.giwaxsQPost, testObj.giwaxsTimePost, testObj.giwaxsIntensityPost, [], [], [], testObj.logDataPost, testObj.logTimeEndIdx)
-        
-        testObj.saveHTMLs(testObj.genParams, [], [], [], testObj.giwaxsTimePost, testObj.giwaxsQPost, testObj.giwaxsIntensityPost, testObj.logDataPost, testObj.outputPath, testObj.sampleName)
-    
-    elif testObj.genParams['PL']:
-        
-        print("_____________________________________________________________")
-        print("Working on the stacked plots. This may take a minute...")
-        
-        #testObj.plotStacked(testObj.genParams, testObj.sampleName, testObj.outputPath, testObj.giwaxsQPost, testObj.giwaxsTimePost, testObj.giwaxsIntensityPost, [], [], [], testObj.logDataPost, testObj.logTimeEndIdx)
-        testObj.logDataPost = pd.DataFrame()
-        testObj.logDataPost.Pyrometer = []
-        testObj.logDataPost.Spin_Motor = []
-        testObj.logDataPost.Time = []
-        
-        testObj.saveHTMLs(testObj.genParams, testObj.plTimePost, testObj.plEnergyPost, testObj.plIntensityPost, [], [], [], testObj.logDataPost, testObj.outputPath, testObj.sampleName)
-    
-    
-    testObj.save_object()
+    mMA_Object.save_object()
     
 if __name__ == "__main__":
     main()

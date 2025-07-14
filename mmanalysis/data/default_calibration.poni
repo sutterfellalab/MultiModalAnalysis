@@ -1,0 +1,14 @@
+# Nota: C-Order, 1 refers to the Y axis, 2 to the X axis
+# Calibration done on Mon Jan  6 16:28:05 2025
+poni_version: 2.1
+Detector: Pilatus1M
+Detector_config: {"orientation": 3}
+Distance: 0.19574653635159325
+Poni1: 0.08852219627349346
+Poni2: 0.050313840175773415
+Rot1: -0.614026830805995
+Rot2: 0.010667016177307458
+Rot3: 0.0
+Wavelength: 1.2398419843320025e-10
+# Calibrant: alumina
+# Image: fabio:///C:/Users/timko/OneDrive/Documents/ActiveProjects/Maged/Maged_Dec24/Maged/Al2O3_calib_10keV_6p25_2p0_35p0_10s.tif
