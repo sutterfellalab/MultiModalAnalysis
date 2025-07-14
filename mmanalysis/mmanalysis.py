@@ -48,6 +48,7 @@ class MMAnalysis(object):
             self.giwaxs = giwaxs
             self.pl = pl
             self.logging = logdata
+            self.igor = igor
             # self.giwaxsParams = settings.giwaxsParameters()
             self.plParams = settings.plParameters()
             self.exampleAluminaImage, self.aluminaCalibrant, self.itoCalibrant, self.defaultPONI = importing.getCalibFiles() #add logic to look for local AluminaImage 
