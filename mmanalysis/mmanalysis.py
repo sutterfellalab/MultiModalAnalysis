@@ -53,21 +53,26 @@ class MMAnalysis(object):
             self.plParams = settings.plParameters()
             self.exampleAluminaImage, self.aluminaCalibrant, self.itoCalibrant, self.defaultPONI = importing.getCalibFiles() #add logic to look for local AluminaImage 
             self.recalibrant = 'ITO' #Needs to be included in the argparse
-            self.baseCalibration = self.askForCalib()
-            
-            #Add option to bypass this following if chain using argparse
-            if self.baseCalibration == "none":
-                
-                self.giwaxsCalibFile = self.calibrateGIWAXS()
-                
-            elif self.baseCalibration == "default":
-                
-                self.giwaxsCalibFile = self.defaultPONI
-                
-            elif self.baseCalibration == "local":
-                
-                self.giwaxsCalibFile = filedialog.askopenfilename(title="Select the local alumina calibration", filetypes=[("PONI files", "*.poni")])
-                print(self.giwaxsCalibFile)
+
+            if self.giwaxs:
+                self.baseCalibration = self.askForCalib()
+
+                #Add option to bypass this following if chain using argparse
+                if self.baseCalibration == "none":
+
+                    self.giwaxsCalibFile = self.calibrateGIWAXS()
+
+                elif self.baseCalibration == "default":
+
+                    self.giwaxsCalibFile = self.defaultPONI
+
+                elif self.baseCalibration == "local":
+
+                    self.giwaxsCalibFile = filedialog.askopenfilename(title="Select the local alumina calibration", filetypes=[("PONI files", "*.poni")])
+                    print(self.giwaxsCalibFile)
+            else:
+                self.baseCalibration = None
+                self.giwaxsCalibFile = None
 
             h5_files = filedialog.askopenfilenames(title="Select the spin-coater run files", filetypes=[("H5 files", "*.h5")])
             self.folder = Path(h5_files[0]).parent
@@ -140,7 +145,8 @@ class MMAnalysis(object):
             self.logTimeEndIdx.append(next(tStart for tStart, valStart in enumerate(logData.iloc[:,0]) if valStart > float(self.inputDict["Times_Logging"][1])))
             
             logDataTemp = logData.to_numpy(copy=True)
-            logDataTemp = logDataTemp[self.logTimeStartIdx[file]-1:self.logTimeEndIdx[file]+2,:] #need to take care of case where start is 0
+            startIdx = max(self.logTimeStartIdx[file]-1, 0)
+            logDataTemp = logDataTemp[startIdx:self.logTimeEndIdx[file]+2,:]
             logDataTemp[:,0] = logDataTemp[:,0] - logDataTemp[0,0]
 
             if self.pl and self.giwaxs:
@@ -169,7 +175,7 @@ class MMAnalysis(object):
             # Need to make the self.variables batches for multiple samples in one run
 
             # Selecting the start time
-            self.giwaxsTimeStartIdx.append(next(eStart for eStart, valStart in enumerate(frame_time) if valStart >  float(self.inputDict["Times_Logging"][0]))-1)
+            self.giwaxsTimeStartIdx.append(max(next(eStart for eStart, valStart in enumerate(frame_time) if valStart >  float(self.inputDict["Times_Logging"][0]))-1, 0))
             # Selecting the end time
             self.giwaxsTimeEndIdx.append(next(eStart for eStart, valStart in enumerate(frame_time) if valStart > float(self.inputDict["Times_Logging"][1]))+1)
             
@@ -198,7 +204,7 @@ class MMAnalysis(object):
         
         #peakName = str(input('Which peak do you want to fit? ' ))
         #lowQ = float(input('Please set the lower q threshold (in A-1): '))
-        lowQIdx = next(qStart for qStart, valStart in enumerate(q) if valStart > float(self.inputDict["GIWAXS-Fits"][1]))-1
+        lowQIdx = max(next(qStart for qStart, valStart in enumerate(q) if valStart > float(self.inputDict["GIWAXS-Fits"][1]))-1, 0)
         #highQ = float(input('Please set the upper q threshold (in A-1): '))
         highQIdx = next(qEnd for qEnd, valEnd in enumerate(q) if valEnd > float(self.inputDict["GIWAXS-Fits"][2]))-1
         
@@ -246,7 +252,7 @@ class MMAnalysis(object):
                  self.inputDict["Input_PL"][1] = energy[-2]
             
             # Selecting the start time
-            self.plTimeStartIdx.append(next(eStart for eStart, valStart in enumerate(time) if valStart > float(self.inputDict["Times_Logging"][0]))-1)
+            self.plTimeStartIdx.append(max(next(eStart for eStart, valStart in enumerate(time) if valStart > float(self.inputDict["Times_Logging"][0]))-1, 0))
             # Selecting the end time
             self.plTimeEndIdx.append(next(eStart for eStart, valStart in enumerate(time) if valStart > float(self.inputDict["Times_Logging"][1]))+1)
             

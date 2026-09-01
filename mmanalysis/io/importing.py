@@ -258,6 +258,7 @@ def getData(plParams, sampleNames, islogging, isgiwaxs, ispl, reCalibrant, calib
                 dfLogging = dfLoggingComplete[["Time (s)", "Pilatus", "Pyrometer", "Spin Motor", "Dispense X", "Gas Quenching"]]
             elif ispl:
                 dfLogging = dfLoggingComplete[["Time (s)", "QEPro", "Pyrometer", "Spin Motor", "Dispense X", "Gas Quenching"]]
+            dfLogging = dfLogging.rename(columns={"Time (s)": "Time"})
             # plt.imshow(recalib_image)
             
             # Collecting everything
@@ -266,7 +267,7 @@ def getData(plParams, sampleNames, islogging, isgiwaxs, ispl, reCalibrant, calib
         if isgiwaxs:
             # Create time arrays for GIWAXS:
             uniqueGIWAXS, firstIdxGIWAXS = np.unique(dfLogging.iloc[:, dfLogging.columns.to_list().index('Pilatus')].to_numpy(), return_index=True)
-            giwaxsTime = dfLogging["Time (s)"].to_numpy()[firstIdxGIWAXS]
+            giwaxsTime = dfLogging["Time"].to_numpy()[firstIdxGIWAXS]
 
             # Re-calibration using the substrate of the actual sample
             newPONIPath = outputPath + '/' + sampleNames[i] + '_ITO-calib.poni'
@@ -325,7 +326,7 @@ def getData(plParams, sampleNames, islogging, isgiwaxs, ispl, reCalibrant, calib
         if ispl:
             # Create time arrays for PL:
             uniquePL, firstIdxPL = np.unique(dfLogging["QEPro"].to_numpy(), return_index=True)
-            plTime = dfLogging["Time (s)"].to_numpy()[firstIdxPL]
+            plTime = dfLogging["Time"].to_numpy()[firstIdxPL]
         
             # PL data manipulation        
             plTimePre, plWavelengthPre, plEnergyPre, plDataPre, plDataLogPre = convertPL(wlData, plTime, np.array(plData), plParams) #make sure dimensions of the array are correct for the function ## add wavelength and isolate time-array form dataframe
