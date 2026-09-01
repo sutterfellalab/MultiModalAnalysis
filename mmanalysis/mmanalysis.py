@@ -13,6 +13,7 @@ import pandas as pd
 # os and pathing
 import glob
 import os
+import sys
 import ntpath
 from pathlib import Path
 
@@ -41,9 +42,15 @@ class MMAnalysis(object):
 
         else:
             print("Starting new analysis...")
-            
+
+            if not logdata and (giwaxs or pl):
+                raise ValueError(
+                    "--logdata false is only supported when --giwaxs and --pl are also false: "
+                    "GIWAXS/PL frame timing is synchronized using the logging data."
+                )
+
             self.inputDict = {}
-            
+
             self.name = name
             self.giwaxs = giwaxs
             self.pl = pl
@@ -75,6 +82,8 @@ class MMAnalysis(object):
                 self.giwaxsCalibFile = None
 
             h5_files = filedialog.askopenfilenames(title="Select the spin-coater run files", filetypes=[("H5 files", "*.h5")])
+            if not h5_files:
+                sys.exit("No H5 files selected - aborting.")
             self.folder = Path(h5_files[0]).parent
             self.numFiles = len(h5_files)
             

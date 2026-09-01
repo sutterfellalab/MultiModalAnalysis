@@ -258,6 +258,8 @@ def getData(plParams, sampleNames, islogging, isgiwaxs, ispl, reCalibrant, calib
                 dfLogging = dfLoggingComplete[["Time (s)", "Pilatus", "Pyrometer", "Spin Motor", "Dispense X", "Gas Quenching"]]
             elif ispl:
                 dfLogging = dfLoggingComplete[["Time (s)", "QEPro", "Pyrometer", "Spin Motor", "Dispense X", "Gas Quenching"]]
+            else:
+                dfLogging = dfLoggingComplete[["Time (s)", "Pyrometer", "Spin Motor", "Dispense X", "Gas Quenching"]]
             dfLogging = dfLogging.rename(columns={"Time (s)": "Time"})
             # plt.imshow(recalib_image)
             
