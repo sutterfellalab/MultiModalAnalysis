@@ -52,12 +52,6 @@ GPU acceleration through OpenCL is optional:
 pip install ".[gpu]"
 ```
 
-## Releasing
-
-Releases are published to PyPI automatically when a GitHub release is published. Before the first automated release, configure a PyPI Trusted Publisher for project `mmanalysis` with owner `sutterfellalab`, repository `MultiModalAnalysis`, workflow `release.yml`, and environment `pypi`. Create the matching `pypi` environment in GitHub and require a maintainer's approval.
-
-To release a version, update `__version__` in `mmanalysis/__init__.py`, commit the change, and publish a GitHub release whose tag exactly matches that version, such as `1.0.5`. The workflow rejects mismatched tags, builds both distributions, validates their metadata, and publishes them without an API token.
-
 ## Features
 
 - **Logging Data Selection**: Automatically suggests start times and plots raw and post-processed log data.
