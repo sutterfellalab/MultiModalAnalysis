@@ -47,7 +47,7 @@ def main(name=None, restart_file=None, folder=None, giwaxs=True, pl=True, logdat
             while continueMain is False:
         
                 #Finding the start time automatically
-                mMA_Object.suggestedLogTimeIdx = next(x for x, val in enumerate(mMA_Object.loggingBatch[file].iloc[:,4]) if val > 0) # 4 is spin motor as set in mMA_importing
+                mMA_Object.suggestedLogTimeIdx = next(x for x, val in enumerate(mMA_Object.loggingBatch[file]["Spin Motor"]) if val > 0)
                 
                 
                 mMA_Object.plotLog(True, mMA_Object.sampleName[file], mMA_Object.outputPath, mMA_Object.loggingBatch[file], file)
