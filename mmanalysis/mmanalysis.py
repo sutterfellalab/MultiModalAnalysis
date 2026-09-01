@@ -376,7 +376,7 @@ class MMAnalysis(object):
        
     def saveHTMLs(self, isgiwaxs, islogging, ispl, timePL, energyPL, intPL, timeGIWAXS, q, intGIWAXS, logData, savePath, sampleName):
         
-        plots.htmlPlots(isgiwaxs, islogging, ispl, timePL, energyPL, intPL, timeGIWAXS, q, intGIWAXS, logData.iloc[:,4], logData.iloc[:,5], logData.iloc[:,0], savePath, sampleName)
+        plots.htmlPlots(isgiwaxs, islogging, ispl, timePL, energyPL, intPL, timeGIWAXS, q, intGIWAXS, logData["Pyrometer"], logData["Spin Motor"], logData.iloc[:,0], savePath, sampleName)
         
         return
 

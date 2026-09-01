@@ -20,12 +20,12 @@ def plotLog(sampleName, savePath, logData):
     
     ax1.set_xlabel('Time (s)', fontsize = 12)
     ax1.set_ylabel(r'Temperature ($^{\circ}$C)', fontsize = 12, color='r')
-    ax1.plot(logData.iloc[:,0], logData.iloc[:,3], 'r-')
+    ax1.plot(logData.iloc[:,0], logData["Pyrometer"], 'r-')
     # ax1.set_ylim([0, 105])
 
     ax2 = ax1.twinx()
     ax2.set_ylabel(r'Spin Speed (rpm)', fontsize = 12, color='b')
-    ax2.plot(logData.iloc[:,0], logData.iloc[:,4], 'b-')
+    ax2.plot(logData.iloc[:,0], logData["Spin Motor"], 'b-')
     
     plt.title(sampleName + ' Logged Parameters')
     plt.savefig(os.path.join(savePath, str(sampleName) + '_LoggedParameters_Plot'), dpi=300, bbox_inches="tight")
@@ -213,12 +213,12 @@ def plotStacked(ispl, sampleName, savePath, q, timeGIWAXS, intGIWAXS, energyPL, 
     ax2.set_ylabel(r'q ($\AA^{-1}$)', fontsize = 12)
 
     # Logging plot
-    ax3.plot(logData.iloc[:,0], logData.iloc[:,4], 'r-')
+    ax3.plot(logData.iloc[:,0], logData["Pyrometer"], 'r-')
     ax3.set_xlabel('Time (s)', fontsize = 12)
     ax3.set_ylabel(r'Temperature ($^{\circ}$C)', fontsize = 12, color='r')
     # ax3.set_ylim([0, 105])
     ax4 = ax3.twinx()
-    ax4.plot(logData.iloc[:,0], logData.iloc[:,5], 'b-')
+    ax4.plot(logData.iloc[:,0], logData["Spin Motor"], 'b-')
     ax4.set_ylabel(r'Spin speed (rpm)', fontsize = 12, color='b')
     plt.subplots_adjust(right=0.88, top=0.97, bottom = 0.1, hspace=0.1)
 
