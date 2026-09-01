@@ -37,6 +37,40 @@ def getCalibFiles():
 def imagesMatch(numbers, number2, target):
     return target in numbers and target in number2
 
+def _decode_names(raw):
+    """
+    Normalize an HDF5 string or string-array into a plain list of str.
+
+    Handles the three shapes the LabVIEW writer produces:
+      - an array of byte strings
+      - a scalar byte string holding a single name
+      - a scalar byte string holding several names joined by tabs/newlines
+    """
+    if isinstance(raw, (bytes, np.bytes_, str)):
+        raw = [raw]
+    names = []
+    for n in np.atleast_1d(raw).ravel():
+        s = n.decode('utf-8', 'replace') if isinstance(n, (bytes, np.bytes_)) else str(n)
+        if '\t' in s or '\n' in s:
+            names.extend(p for p in s.replace('\n', '\t').split('\t') if p)
+        else:
+            names.append(s)
+    return names
+
+def _get_header_part(h5_file, dset, key):
+    """
+    Fetch one piece of the logging header.
+
+    Older files attach 'Data Names' / 'Images' as attributes of Data/AI;
+    newer ones write them as datasets at the file root. Try both.
+    """
+    if key in dset.attrs:
+        return _decode_names(dset.attrs[key])
+    if key in h5_file:
+        return _decode_names(h5_file[key][()])
+    raise KeyError(f"'{key}' not found as an attribute of {dset.name} "
+                   f"or as a dataset at the file root")
+
 def loadData(islogging, isgiwaxs, ispl, filePath, calibration):
     # Open the HDF5 file
     with h5py.File(filePath, 'r') as h5_file:
@@ -54,9 +88,18 @@ def loadData(islogging, isgiwaxs, ispl, filePath, calibration):
             # List all datasets in the 'images' group
             loggingDataset = dataset['AI']
             loggingData = loggingDataset[...]
-            loggingHeader1 = loggingDataset.attrs['Data Names']
-            loggingHeader2 = loggingDataset.attrs['Images']
-            loggingHeader = np.concatenate((loggingHeader1, loggingHeader2))
+
+            loggingHeader1 = _get_header_part(h5_file, loggingDataset, 'Data Names')
+            loggingHeader2 = _get_header_part(h5_file, loggingDataset, 'Images')
+            loggingHeader = loggingHeader1 + loggingHeader2
+
+            if len(loggingHeader) != loggingData.shape[1]:
+                raise ValueError(
+                    f"{filePath}: header has {len(loggingHeader)} names "
+                    f"({len(loggingHeader1)} from 'Data Names' + "
+                    f"{len(loggingHeader2)} from 'Images') but the AI array "
+                    f"has {loggingData.shape[1]} columns"
+                )
             
         #%% GIWAXS-Data
         if isgiwaxs:
