@@ -5,7 +5,16 @@ Created on Mon Mar  6 11:03:33 2023
 @author: Tim Kodalle
 """
 
+import sys
 import tkinter as tk
+from tkinter import messagebox
+
+
+def _abort_on_close():
+    # The user closed the window via the OS close button instead of submitting;
+    # exit cleanly instead of letting later code crash on missing input.
+    sys.exit("GUI window closed by user - aborting.")
+
 
 def baseCalibPopUp():
     # Create the main window
@@ -15,6 +24,7 @@ def baseCalibPopUp():
     # Create a Toplevel window for the custom dialog
     top = tk.Toplevel(root)
     top.title("Calibration")
+    top.protocol("WM_DELETE_WINDOW", _abort_on_close)
 
     # Add a label to the dialog
     label = tk.Label(top, text="How would like to calibrate your GIWAXS data?")
@@ -67,10 +77,11 @@ def inputGUI(inputDict, DictEntry, numberOfInputs, Title, Labels, TextPrompt):
     # Create the GUI window
     root = tk.Tk()
     root.title(Title)
-    
+    root.protocol("WM_DELETE_WINDOW", _abort_on_close)
+
     label = tk.Label(root, text=TextPrompt)
     label.grid(row=0, column=0, columnspan = 2)
-    
+
     # Create the input fields and labels
     for i in range(numberOfInputs):
         label = tk.Label(root, text=Labels[i])
@@ -83,31 +94,32 @@ def inputGUI(inputDict, DictEntry, numberOfInputs, Title, Labels, TextPrompt):
     # Create a button to update the variables
     update_button = tk.Button(root, text="Submit", command=updateVariables)
     update_button.grid(row=numberOfInputs + 2, column=0, columnspan=2)
-    
+
     # Start the GUI event loop
     root.mainloop()
-    
+
     return
 
 
 def selectionGUI(inputDict, DictEntry, title, options):
-    
+
     root = tk.Tk()
     root.title(title)
+    root.protocol("WM_DELETE_WINDOW", _abort_on_close)
 
     v = tk.IntVar(root)
-    
+
     for i, option in enumerate(options):
         radioButton = tk.Radiobutton(root, text=option, variable=v, value=i)
         radioButton.grid(row=i, column=1)
-        
-    def submitButton():
+
+    def onSubmit():
         root.quit()
         root.destroy()
-        
-    submitButton = tk.Button(root, text="Submit", command=submitButton)
+
+    submitButton = tk.Button(root, text="Submit", command=onSubmit)
     submitButton.grid(row=len(options) + 2, column=1)
-    
+
     root.mainloop()
     
     inputDict[DictEntry] = options[v.get()]
@@ -123,20 +135,24 @@ def combinedGUI(inputDict, DictEntry, DictEntry2, DictEntry3, numberOfInputs, Ti
     # Create a function to update the variables and close the GUI window
     def updateVariables():
         allEntries = []
+        for entry in entries:
+            try:
+                allEntries.append(float(entry.get()))
+            except ValueError:
+                messagebox.showerror("Invalid input", f"'{entry.get()}' is not a valid number.")
+                return
+
         allBoxes = []
         allBoxes2 = []
-        for entry in entries:   
-            allEntries.append(float(entry.get()))
-            
-        for box in boxes: 
+        for box in boxes:
             allBoxes.append(box.get())
-        
-        for box in boxes2: 
+
+        for box in boxes2:
             allBoxes2.append(box.get())
-            
+
         root.quit()
         root.destroy()  # close the GUI window
-        
+
         # update class variable
         inputDict[DictEntry] = allEntries
         inputDict[DictEntry2] = allBoxes
@@ -145,7 +161,8 @@ def combinedGUI(inputDict, DictEntry, DictEntry2, DictEntry3, numberOfInputs, Ti
     # Create the GUI window
     root = tk.Tk()
     root.title(Title)
-    
+    root.protocol("WM_DELETE_WINDOW", _abort_on_close)
+
     label = tk.Label(root, text=TextPrompt)
     label.grid(row=0, column=0, columnspan = 2)
    

@@ -356,7 +356,7 @@ def htmlPlots(isgiwaxs, islogging, ispl, time_pl, y_pl, z_pl, time_giwaxs, y_giw
         speed_giwaxs = []
         numeric_input_giwaxs = []
         
-        tab2 = TabPanel(child=p_pl, title="GIWAXS")
+        tab2 = TabPanel(child=p_giwaxs, title="GIWAXS")
     
     
     #%%Logging
@@ -400,7 +400,7 @@ def htmlPlots(isgiwaxs, islogging, ispl, time_pl, y_pl, z_pl, time_giwaxs, y_giw
         p_log.yaxis.axis_label = 'Temperature'
         p_log.grid.visible = False
         
-        tab3 = TabPanel(child=p_pl, title="LOG")
+        tab3 = TabPanel(child=p_log, title="LOG")
         
         timeLogStart = 1
     

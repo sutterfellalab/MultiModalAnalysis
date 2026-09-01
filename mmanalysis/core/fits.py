@@ -346,8 +346,8 @@ def plFitting(plParams, df_yCut, df_xCutFit, df_fit, show_every, numGauss, peakL
             print("Time:")
             print(df_xCutFit[i])
             traceback.print_exc()
-            pass
-        
+            continue
+
         for ii in range(0,int(numGauss)):
             parameters = [popt[i,ii], popt[i,int(numGauss)+ii], popt[i,2*int(numGauss)+ii], popt[i,3*int(numGauss)+ii], 0, 0]
             peakFWHM[i,ii] = fWHM_Voigt(df_yCut, popt[i,int(numGauss)+ii], sum_of_Voigts(popt[i,int(numGauss)+ii], *parameters), parameters)

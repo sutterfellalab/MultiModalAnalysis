@@ -143,24 +143,38 @@ def main(name=None, restart_file=None, folder=None, giwaxs=True, pl=True, logdat
             mMA_Object.saveHTMLs(mMA_Object.giwaxs, mMA_Object.logging, mMA_Object.pl, [], [], [], mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsIntensityPost[file], mMA_Object.logDataPost[file], mMA_Object.outputPath, mMA_Object.sampleName[file])
             
             print("_____________________________________________________________")
-            
+
+        elif mMA_Object.pl and mMA_Object.logging:
+
+            print("Please close all figures to continue.")
+
+            mMA_Object.saveHTMLs(mMA_Object.giwaxs, mMA_Object.logging, mMA_Object.pl, mMA_Object.plTimePost[file], mMA_Object.plEnergyPost[file], mMA_Object.plIntensityPost[file], [], [], [], mMA_Object.logDataPost[file], mMA_Object.outputPath, mMA_Object.sampleName[file])
+
+            print("_____________________________________________________________")
+
+        else:
+
+            print("Skipping combined stacked/HTML output (needs GIWAXS+logging and/or PL+logging).")
+
         #%%
-                        
-        if mMA_Object.igor:  
-            
-            # Optimizing data for plots in Igor - take out if not using Igor
-            mMA_Object.giwaxsTimePost[file] = np.append(mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsTimePost[file][-1]+mMA_Object.giwaxsTimePost[file][-1]-mMA_Object.giwaxsTimePost[file][-2])
-            mMA_Object.giwaxsQPost[file] = np.append(mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsQPost[file][-1]+mMA_Object.giwaxsQPost[file][-1]-mMA_Object.giwaxsQPost[file][-2])
-            
+
+        if mMA_Object.igor:
+
+            if mMA_Object.giwaxs:
+                # Optimizing data for plots in Igor - take out if not using Igor
+                mMA_Object.giwaxsTimePost[file] = np.append(mMA_Object.giwaxsTimePost[file], mMA_Object.giwaxsTimePost[file][-1]+mMA_Object.giwaxsTimePost[file][-1]-mMA_Object.giwaxsTimePost[file][-2])
+                mMA_Object.giwaxsQPost[file] = np.append(mMA_Object.giwaxsQPost[file], mMA_Object.giwaxsQPost[file][-1]+mMA_Object.giwaxsQPost[file][-1]-mMA_Object.giwaxsQPost[file][-2])
+
             if mMA_Object.pl:
                 # Optimizing data for plots in Igor - take out if not using Igor
                 mMA_Object.plTimePost[file] = np.append(mMA_Object.plTimePost[file], mMA_Object.plTimePost[file][-1]+mMA_Object.plTimePost[file][-1]-mMA_Object.plTimePost[file][-2])
                 mMA_Object.plEnergyPost[file] = np.append(mMA_Object.plEnergyPost[file], mMA_Object.plEnergyPost[file][-1]+mMA_Object.plEnergyPost[file][-1]-mMA_Object.plEnergyPost[file][-2])
-                
-        np.savetxt(mMA_Object.outputPath + '/' + mMA_Object.sampleName[file] + '_GIWAXS_qValues.csv', mMA_Object.giwaxsQPost[file], delimiter=",", header = mMA_Object.sampleName[file] + '_q-Values')
-        np.savetxt(mMA_Object.outputPath + '/' + mMA_Object.sampleName[file] + '_GIWAXS_Time.csv', mMA_Object.giwaxsTimePost[file], delimiter=",", header = mMA_Object.sampleName[file] + '_GIWAXS_Time')
-        np.savetxt(mMA_Object.outputPath + '/' + mMA_Object.sampleName[file] + '_GIWAXS_Intensity.csv', mMA_Object.giwaxsIntensityPost[file], delimiter=",")
-        
+
+        if mMA_Object.giwaxs:
+            np.savetxt(mMA_Object.outputPath + '/' + mMA_Object.sampleName[file] + '_GIWAXS_qValues.csv', mMA_Object.giwaxsQPost[file], delimiter=",", header = mMA_Object.sampleName[file] + '_q-Values')
+            np.savetxt(mMA_Object.outputPath + '/' + mMA_Object.sampleName[file] + '_GIWAXS_Time.csv', mMA_Object.giwaxsTimePost[file], delimiter=",", header = mMA_Object.sampleName[file] + '_GIWAXS_Time')
+            np.savetxt(mMA_Object.outputPath + '/' + mMA_Object.sampleName[file] + '_GIWAXS_Intensity.csv', mMA_Object.giwaxsIntensityPost[file], delimiter=",")
+
         if mMA_Object.pl:
             np.savetxt(mMA_Object.outputPath + '/' + mMA_Object.sampleName[file] + '_PL_Energy.csv', mMA_Object.plEnergyPost[file], delimiter=",", header = mMA_Object.sampleName[file] + '_Energy') 
             np.savetxt(mMA_Object.outputPath + '/' + mMA_Object.sampleName[file] + '_PL_Time.csv', mMA_Object.plTimePost[file], delimiter=",", header = mMA_Object.sampleName[file] + '_PLTime')
