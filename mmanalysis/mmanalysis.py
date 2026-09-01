@@ -139,7 +139,7 @@ class MMAnalysis(object):
             self.logTimeStartIdx.append(next(tStart for tStart, valStart in enumerate(logData.iloc[:,0]) if valStart > float(self.inputDict["Times_Logging"][0])))
             self.logTimeEndIdx.append(next(tStart for tStart, valStart in enumerate(logData.iloc[:,0]) if valStart > float(self.inputDict["Times_Logging"][1])))
             
-            logDataTemp = logData.to_numpy()
+            logDataTemp = logData.to_numpy(copy=True)
             logDataTemp = logDataTemp[self.logTimeStartIdx[file]-1:self.logTimeEndIdx[file]+2,:] #need to take care of case where start is 0
             logDataTemp[:,0] = logDataTemp[:,0] - logDataTemp[0,0]
 
