@@ -1,3 +1,54 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "mmanalysis"
+dynamic = ["version"]
+description = "Postprocess multimodal in-situ GIWAXS and photoluminescence data"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+authors = [
+    { name = "sutterfellalab", email = "TimKodalle@lbl.gov" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "dill",
+    "matplotlib",
+    "lmfit",
+    "bokeh",
+    "tqdm",
+    "h5py",
+    "fabio",
+    "platformdirs",
+    "pyFAI[gui]",
+]
+
+[project.optional-dependencies]
+gpu = ["pyopencl"]
+
+[project.urls]
+Homepage = "https://github.com/sutterfellalab/MultiModalAnalysis"
+Issues = "https://github.com/sutterfellalab/MultiModalAnalysis/issues"
+
+[project.scripts]
+mmanalysis = "mmanalysis.cli.mmanalysis_cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "mmanalysis.__version__" }
+
+[tool.setuptools.package-data]
+mmanalysis = ["data/*"]

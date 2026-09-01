@@ -39,18 +39,24 @@ Clone the repository in the desired location:
 git clone https://github.com/sutterfellalab/MultiModalAnalysis.git
 ```
 
-Install the required packages:
+Install the package and its dependencies with pip:
 
 ```bash
 cd MultiModalAnalysis
-conda install -c conda-forge --file requirements.txt
-```
-
-Install the package with pip:
-
-```bash
 pip install .
 ```
+
+GPU acceleration through OpenCL is optional:
+
+```bash
+pip install ".[gpu]"
+```
+
+## Releasing
+
+Releases are published to PyPI automatically when a GitHub release is published. Before the first automated release, configure a PyPI Trusted Publisher for project `mmanalysis` with owner `sutterfellalab`, repository `MultiModalAnalysis`, workflow `release.yml`, and environment `pypi`. Create the matching `pypi` environment in GitHub and require a maintainer's approval.
+
+To release a version, update `__version__` in `mmanalysis/__init__.py`, commit the change, and publish a GitHub release whose tag exactly matches that version, such as `1.0.5`. The workflow rejects mismatched tags, builds both distributions, validates their metadata, and publishes them without an API token.
 
 ## Features
 
@@ -65,4 +71,3 @@ pip install .
 Feel free to create Merge Requests and Issues on our GitHub page: [https://github.com/sutterfellalab/MultiModalAnalysis](https://github.com/sutterfellalab/MultiModalAnalysis).
 
 If you want to contact the authors, please write to T. Kodalle at <TimKodalle@lbl.gov>.
-

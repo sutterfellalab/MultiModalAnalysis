@@ -3,13 +3,10 @@ scipy
 pandas
 dill
 matplotlib
-tk
 lmfit
 bokeh
 tqdm
 h5py
-pyFAI
-pyqt5
-pyside6
-pyqt6
-pyopencl
+fabio
+platformdirs
+pyFAI[gui]
