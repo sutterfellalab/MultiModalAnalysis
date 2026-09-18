@@ -7,6 +7,6 @@ Created on Tue Dec 20 11:12:01 2022
 """
 
 # package info
-__version__ = '1.0.6'
-__date__    = "01 Sep. 2026"
+__version__ = '1.0.7'
+__date__    = "18 Sep. 2026"
 __author__  = "sutterfellalab"

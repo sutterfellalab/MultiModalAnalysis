@@ -37,6 +37,25 @@ def getCalibFiles():
 def imagesMatch(numbers, number2, target):
     return target in numbers and target in number2
 
+def _unwrap_frame_counter(counter):
+    """
+    Undo resets in the Pilatus frame counter logged in Data/AI.
+
+    Older LabVIEW runs sometimes use a fixed-size buffer for this counter,
+    so it silently resets to 0 once the buffer is full instead of continuing
+    to increase (e.g. ...998, 999, 0, 1, 2...). Detect each reset and offset
+    all subsequent values so the counter keeps counting up, matching the
+    actual (unbounded) Pilatus dataset numbering.
+    """
+    counter = np.asarray(counter, dtype=float)
+    unwrapped = counter.copy()
+    offset = 0.0
+    for i in range(1, len(counter)):
+        if counter[i] + offset < unwrapped[i - 1]:
+            offset = unwrapped[i - 1] + 1 - counter[i]
+        unwrapped[i] = counter[i] + offset
+    return unwrapped
+
 def _decode_names(raw):
     """
     Normalize an HDF5 string or string-array into a plain list of str.
@@ -107,10 +126,11 @@ def loadData(islogging, isgiwaxs, ispl, filePath, calibration):
             giwaxsDatasets = dataset['images']
             giwaxsDatasetNames = list(giwaxsDatasets.keys())
             imageNums = [float(datasetName.split()[-1]) for datasetName in giwaxsDatasetNames]
+            pilatusCounter = _unwrap_frame_counter(loggingData[:, -1])
             i = 0
             # Load each dataset into a NumPy array
             for datasetName in giwaxsDatasetNames:
-                if datasetName.startswith('Pilatus') and imagesMatch(imageNums, loggingData[:,-1], imageNums[i]):
+                if datasetName.startswith('Pilatus') and imagesMatch(imageNums, pilatusCounter, imageNums[i]):
                     giwaxsImage = giwaxsDatasets[datasetName]
                     imageData = giwaxsImage[...]
                     giwaxsData.append(imageData)
@@ -261,6 +281,9 @@ def getData(plParams, sampleNames, islogging, isgiwaxs, ispl, reCalibrant, calib
             else:
                 dfLogging = dfLoggingComplete[["Time (s)", "Pyrometer", "Spin Motor", "Dispense X", "Gas Quenching"]]
             dfLogging = dfLogging.rename(columns={"Time (s)": "Time"})
+            if isgiwaxs:
+                dfLogging = dfLogging.copy()
+                dfLogging["Pilatus"] = _unwrap_frame_counter(dfLogging["Pilatus"].to_numpy())
             # plt.imshow(recalib_image)
             
             # Collecting everything
